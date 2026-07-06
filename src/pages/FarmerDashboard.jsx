@@ -35,7 +35,7 @@ function App() {
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[var(--color-charcoal)]">
           <Link to="/marketplace" className="text-gray-600 hover:text-[var(--color-charcoal)]">Marketplace</Link>
           <span className="pb-1 border-b-2 border-[var(--color-primary)]">Dashboard</span>
-          <span>Logistics</span>
+          <Link to="/logistics">Logistics</Link>
         </nav>
       </header>
 

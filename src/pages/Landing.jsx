@@ -50,7 +50,7 @@ function Landing() {
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[var(--color-charcoal)]">
           <Link to="/marketplace" className="text-gray-600 hover:text-[var(--color-charcoal)]">Marketplace</Link>
           <Link to="/dashboard">Dashboard</Link>
-          <span>Logistics</span>
+          <Link to="/logistics">Logistics</Link>
         </nav>
       </header>
 

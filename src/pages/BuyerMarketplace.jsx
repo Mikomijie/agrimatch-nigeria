@@ -121,7 +121,7 @@ function BuyerMarketplace() {
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[var(--color-charcoal)]">
           <span className="pb-1 border-b-2 border-[var(--color-primary)]">Marketplace</span>
           <Link to="/dashboard">Dashboard</Link>
-          <span>Logistics</span>
+          <Link to="/logistics">Logistics</Link>
         </nav>
       </header>
 
