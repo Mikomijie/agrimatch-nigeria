@@ -1,84 +1,60 @@
 import { Link, useParams } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-
-// Same dummy data as marketplace for now — will come from backend later
-const PRODUCE = [
-  {
-    id: '1',
-    name: 'Grade-A Tomatoes',
-    farmer: 'Kofi Mensah',
-    rating: 4.9,
-    orders: 120,
-    location: 'Techiman Hub',
-    origin: 'Bono East',
-    freshness: 98,
-    quantity: 450,
-    price: 12.5,
-    image: '/images/produce/tomatoes.jpg',
-    farmerImage: '/images/farmers/farmer-portrait.jpg',
-    harvested: 'Harvested 4 hours ago',
-  },
-  {
-    id: '2',
-    name: "Fresh Bird's Eye Peppers",
-    farmer: 'Abena Osei',
-    rating: 4.7,
-    orders: 84,
-    location: 'Tuobodom',
-    origin: 'Bono East',
-    freshness: 95,
-    quantity: 300,
-    price: 8.0,
-    image: '/images/produce/peppers.jpg',
-    farmerImage: '/images/farmers/farmer-portrait.jpg',
-    harvested: 'Harvested 6 hours ago',
-  },
-  {
-    id: '3',
-    name: 'Garden Eggs',
-    farmer: 'Yaw Boateng',
-    rating: 4.8,
-    orders: 65,
-    location: 'Techiman Central',
-    origin: 'Bono East',
-    freshness: 97,
-    quantity: 200,
-    price: 6.5,
-    image: '/images/produce/garden-eggs.jpg',
-    farmerImage: '/images/farmers/farmer-portrait.jpg',
-    harvested: 'Harvested 2 hours ago',
-  },
-  {
-    id: '4',
-    name: 'Fresh Okra',
-    farmer: 'Ama Serwaa',
-    rating: 4.6,
-    orders: 41,
-    location: 'Kintampo South',
-    origin: 'Bono East',
-    freshness: 92,
-    quantity: 150,
-    price: 5.0,
-    image: '/images/produce/okra.jpg',
-    farmerImage: '/images/farmers/farmer-portrait.jpg',
-    harvested: 'Harvested 8 hours ago',
-  },
-]
+import { supabase } from '../lib/supabaseClient'
+// Temporary: using a seeded buyer ID until real auth is wired up
+const TEMP_BUYER_ID = '55555555-5555-5555-5555-555555555555'
 
 function ProductDetail() {
   const { id } = useParams()
-  const product = PRODUCE.find((p) => p.id === id) || PRODUCE[0]
+  const [product, setProduct] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const [quantity, setQuantity] = useState(50)
-  const subtotal = quantity * product.price
+  const [confirmed, setConfirmed] = useState(false)
+
+  useEffect(() => {
+    async function fetchProduct() {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*, users(name, rating)')
+        .eq('id', id)
+        .single()
+
+      if (error) {
+        setError(error.message)
+      } else {
+        setProduct(data)
+      }
+      setLoading(false)
+    }
+
+    fetchProduct()
+  }, [id])
+
+  if (loading) return <p className="p-10 text-center text-gray-500">Loading...</p>
+  if (error) return <p className="p-10 text-center text-red-500">Error: {error}</p>
+  if (!product) return <p className="p-10 text-center text-gray-500">Product not found.</p>
+
+  const subtotal = quantity * product.price_per_unit
   const logisticsFee = 45
   const total = subtotal + logisticsFee
 
-  const [confirmed, setConfirmed] = useState(false)
+  const handleOrder = async () => {
+    const { error } = await supabase.from('orders').insert({
+      listing_id: product.id,
+      buyer_id: TEMP_BUYER_ID,
+      quantity: quantity,
+      total_price: total,
+      status: 'pending',
+    })
 
-  const handleOrder = () => {
-    setConfirmed(true)
+    if (error) {
+      setError(error.message)
+    } else {
+      setConfirmed(true)
+    }
   }
 
   return (
@@ -95,7 +71,6 @@ function ProductDetail() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 md:px-10 py-10">
-        {/* Product info */}
         <div className="grid md:grid-cols-2 gap-10 items-start">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -104,9 +79,9 @@ function ProductDetail() {
           >
             <p className="flex items-center gap-2 text-xs text-gray-500">
               <span className="w-2 h-2 rounded-full bg-[var(--color-secondary)] animate-pulse" />
-              {product.harvested.toUpperCase()}
+              {product.freshness?.toUpperCase()}
             </p>
-            <h1 className="font-[var(--font-heading)] text-4xl mt-2">{product.name}</h1>
+            <h1 className="font-[var(--font-heading)] text-4xl mt-2">{product.crop_type}</h1>
             <p className="mt-3 text-gray-600 text-sm max-w-sm">
               Sun-cured, freshly harvested produce from the mineral-rich soils of the Techiman
               valley, grown using traditional cultivation techniques.
@@ -114,20 +89,20 @@ function ProductDetail() {
 
             <div className="grid grid-cols-2 gap-4 mt-6 text-sm">
               <div>
-                <p className="text-gray-500 text-xs">Batch Freshness</p>
-                <p className="font-[var(--font-heading)] text-lg">{product.freshness}/100</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-xs">Origin</p>
-                <p className="font-[var(--font-heading)] text-lg">{product.origin}</p>
-              </div>
-              <div>
                 <p className="text-gray-500 text-xs">Available Quantity</p>
                 <p className="font-[var(--font-heading)] text-lg">{product.quantity} kg</p>
               </div>
               <div>
+                <p className="text-gray-500 text-xs">Location</p>
+                <p className="font-[var(--font-heading)] text-lg">{product.location}</p>
+              </div>
+              <div>
                 <p className="text-gray-500 text-xs">Price per kg</p>
-                <p className="font-[var(--font-heading)] text-lg">GH₵{product.price.toFixed(2)}</p>
+                <p className="font-[var(--font-heading)] text-lg">GH₵{product.price_per_unit}</p>
+              </div>
+              <div>
+                <p className="text-gray-500 text-xs">Farmer Rating</p>
+                <p className="font-[var(--font-heading)] text-lg">★ {product.users?.rating}</p>
               </div>
             </div>
           </motion.div>
@@ -139,26 +114,21 @@ function ProductDetail() {
             className="relative"
           >
             <div className="aspect-[4/3] rounded-lg overflow-hidden bg-gray-100">
-              <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+              <img src={product.image_url} alt={product.crop_type} className="w-full h-full object-cover" />
             </div>
             <div className="absolute -bottom-6 left-4 right-4 md:right-auto md:w-72 bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3 shadow-sm">
-              <img
-                src={product.farmerImage}
-                alt={product.farmer}
-                className="w-10 h-10 rounded-full object-cover"
-              />
+              <div className="w-10 h-10 rounded-full bg-[var(--color-primary-light)] flex items-center justify-center font-[var(--font-heading)] text-[var(--color-primary-dark)]">
+                {product.users?.name?.charAt(0)}
+              </div>
               <div>
                 <p className="text-xs text-gray-500">Verified Grower</p>
-                <p className="font-medium text-sm">{product.farmer}</p>
-                <p className="text-xs text-[var(--color-secondary)]">
-                  ★ {product.rating} ({product.orders} orders)
-                </p>
+                <p className="font-medium text-sm">{product.users?.name}</p>
+                <p className="text-xs text-[var(--color-secondary)]">★ {product.users?.rating}</p>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Order panel */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}

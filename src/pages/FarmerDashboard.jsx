@@ -1,37 +1,70 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabaseClient'
+
+// Temporary: using a seeded farmer ID until real auth is wired up
+const TEMP_FARMER_ID = '11111111-1111-1111-1111-111111111111'
 
 const CROPS = [
-  { id: 'tomatoes', label: 'Tomatoes', image: '/images/produce/tomatoes.jpg' },
-  { id: 'peppers', label: 'Peppers', image: '/images/produce/peppers.jpg' },
-  { id: 'garden-eggs', label: 'Garden Eggs', image: '/images/produce/garden-eggs.jpg' },
+  { id: 'Tomatoes', label: 'Tomatoes', image: '/images/produce/tomatoes.jpg' },
+  { id: 'Peppers', label: 'Peppers', image: '/images/produce/peppers.jpg' },
+  { id: 'Garden Eggs', label: 'Garden Eggs', image: '/images/produce/garden-eggs.jpg' },
+  { id: 'Okra', label: 'Okra', image: '/images/produce/okra.jpg' },
 ]
 
 const FRESHNESS_OPTIONS = [
-  { id: 'today', label: 'Harvested Today' },
-  { id: 'yesterday', label: 'Harvested Yesterday' },
-  { id: 'tomorrow', label: 'Harvesting Tomorrow' },
+  { id: 'Harvested Today', label: 'Harvested Today' },
+  { id: 'Harvested Yesterday', label: 'Harvested Yesterday' },
+  { id: 'Harvesting Tomorrow', label: 'Harvesting Tomorrow' },
 ]
 
-function App() {
-  const [selectedCrop, setSelectedCrop] = useState('tomatoes')
-  const [freshness, setFreshness] = useState('today')
+function FarmerDashboard() {
+  const navigate = useNavigate()
+  const [selectedCrop, setSelectedCrop] = useState('Tomatoes')
+  const [freshness, setFreshness] = useState('Harvested Today')
   const [quantity, setQuantity] = useState('')
   const [price, setPrice] = useState('')
   const [location, setLocation] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(false)
 
-  const handlePublish = (e) => {
+  const handlePublish = async (e) => {
     e.preventDefault()
-    console.log({ selectedCrop, quantity, price, location, freshness })
+    setSubmitting(true)
+    setError(null)
+    setSuccess(false)
+
+    const cropImage = CROPS.find((c) => c.id === selectedCrop)?.image
+
+    const { error } = await supabase.from('listings').insert({
+      farmer_id: TEMP_FARMER_ID,
+      crop_type: selectedCrop,
+      quantity: Number(quantity),
+      price_per_unit: Number(price),
+      location,
+      freshness,
+      image_url: cropImage,
+    })
+
+    setSubmitting(false)
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setSuccess(true)
+      setQuantity('')
+      setPrice('')
+      setLocation('')
+    }
   }
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
       <header className="flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-background-warm)] border-b border-gray-200">
-        <span className="font-[var(--font-heading)] italic text-2xl text-[var(--color-primary)]">
+        <Link to="/" className="font-[var(--font-heading)] italic text-2xl text-[var(--color-primary)]">
           AgriMatch
-        </span>
+        </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[var(--color-charcoal)]">
           <Link to="/marketplace" className="text-gray-600 hover:text-[var(--color-charcoal)]">Marketplace</Link>
           <span className="pb-1 border-b-2 border-[var(--color-primary)]">Dashboard</span>
@@ -40,24 +73,21 @@ function App() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 md:px-10 py-12 grid md:grid-cols-3 gap-12">
-        {/* Left: listing form */}
         <form onSubmit={handlePublish} className="md:col-span-2 space-y-8">
           <div>
             <h1 className="font-[var(--font-heading)] text-4xl md:text-5xl leading-tight">
               List your fresh <span className="italic text-[var(--color-secondary)]">harvest today.</span>
             </h1>
             <p className="mt-3 text-gray-600 max-w-md">
-              Direct access to Ghanaian retailers and bulk buyers. Provide accurate details to
-              ensure trust and speed in your transactions.
+              Direct access to Ghanaian retailers and bulk buyers.
             </p>
           </div>
 
-          {/* Step 1: crop type */}
           <div>
             <p className="text-xs font-semibold tracking-wide text-gray-500 mb-3">
               1. SELECT CROP TYPE
             </p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               {CROPS.map((crop) => (
                 <button
                   type="button"
@@ -78,14 +108,14 @@ function App() {
             </div>
           </div>
 
-          {/* Step 2 & 3: quantity + price */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold tracking-wide text-gray-500">
-                2. TOTAL QUANTITY (CRATES)
+                2. TOTAL QUANTITY (KG)
               </label>
               <input
                 type="number"
+                required
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="0.00"
@@ -94,10 +124,11 @@ function App() {
             </div>
             <div>
               <label className="text-xs font-semibold tracking-wide text-gray-500">
-                3. PRICE PER CRATE (GH₵)
+                3. PRICE PER KG (GH₵)
               </label>
               <input
                 type="number"
+                required
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="0.00"
@@ -106,13 +137,13 @@ function App() {
             </div>
           </div>
 
-          {/* Step 4: location */}
           <div>
             <label className="text-xs font-semibold tracking-wide text-gray-500">
               4. PICKUP LOCATION
             </label>
             <input
               type="text"
+              required
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Town, Region (e.g. Techiman, Bono East)"
@@ -120,7 +151,6 @@ function App() {
             />
           </div>
 
-          {/* Step 5: freshness */}
           <div>
             <label className="text-xs font-semibold tracking-wide text-gray-500">
               5. HARVEST &amp; FRESHNESS
@@ -137,34 +167,32 @@ function App() {
                       : 'border-gray-300 text-gray-600 hover:border-[var(--color-primary)]/40'
                   }`}
                 >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      opt.id === 'today' ? 'bg-[var(--color-secondary)] animate-pulse' : 'bg-gray-300'
-                    }`}
-                  />
                   {opt.label}
                 </button>
               ))}
             </div>
           </div>
 
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          {success && <p className="text-sm text-[var(--color-primary)]">✓ Listing published successfully!</p>}
+
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="bg-[var(--color-secondary)] text-white px-6 py-3 rounded-md font-medium tracking-wide hover:brightness-95 active:scale-[0.98] transition-all"
+              disabled={submitting}
+              className="bg-[var(--color-secondary)] text-white px-6 py-3 rounded-md font-medium tracking-wide hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60"
             >
-              PUBLISH LISTING
+              {submitting ? 'PUBLISHING...' : 'PUBLISH LISTING'}
             </button>
-            <button
-              type="button"
+            <Link
+              to="/marketplace"
               className="border border-gray-300 px-6 py-3 rounded-md font-medium tracking-wide hover:bg-gray-50 transition-colors"
             >
-              SAVE AS DRAFT
-            </button>
+              VIEW MARKETPLACE
+            </Link>
           </div>
         </form>
 
-        {/* Right: market insight sidebar */}
         <aside className="space-y-6">
           <div className="border border-gray-200 rounded-lg p-5 bg-[var(--color-background-warm)]">
             <h2 className="font-[var(--font-heading)] text-xl">Market Insight</h2>
@@ -172,14 +200,6 @@ function App() {
               Current market prices in <strong>Techiman Hub</strong> are trending upward for
               grade-A tomatoes.
             </p>
-            <div className="mt-4 flex justify-between text-sm border-t border-gray-200 pt-3">
-              <span className="text-gray-500">AVERAGE PRICE</span>
-              <span className="font-[var(--font-heading)]">GH₵ 420.00</span>
-            </div>
-            <div className="flex justify-between text-sm mt-1">
-              <span className="text-gray-500">ACTIVE BUYERS</span>
-              <span className="font-[var(--font-heading)]">142</span>
-            </div>
             <div className="mt-4 aspect-[3/4] rounded-md overflow-hidden bg-gray-100">
               <img
                 src="/images/farmers/farmer-portrait.jpg"
@@ -188,18 +208,10 @@ function App() {
               />
             </div>
           </div>
-
-          <div className="bg-[var(--color-primary)] text-white rounded-lg p-5">
-            <h3 className="font-[var(--font-heading)] italic text-lg">Trusted Seller Program</h3>
-            <p className="mt-2 text-sm text-white/85">
-              Complete your 3rd successful harvest listing this month to unlock "Premium
-              Producer" status and priority logistics.
-            </p>
-          </div>
         </aside>
       </main>
     </div>
   )
 }
 
-export default App
+export default FarmerDashboard

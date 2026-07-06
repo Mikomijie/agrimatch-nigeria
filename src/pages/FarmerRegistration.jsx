@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { supabase } from '../lib/supabaseClient'
 
 const REGIONS = [
   'Bono East',
@@ -12,19 +13,36 @@ const REGIONS = [
 ]
 
 function FarmerRegistration() {
+  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [region, setRegion] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // TODO: wire up to Supabase once backend is ready
-    console.log({ name, phone, region })
+    setSubmitting(true)
+    setError(null)
+
+    const { error } = await supabase.from('users').insert({
+      role: 'farmer',
+      name,
+      phone: `+233${phone}`,
+      region,
+    })
+
+    setSubmitting(false)
+
+    if (error) {
+      setError(error.message)
+    } else {
+      navigate('/dashboard')
+    }
   }
 
   return (
     <div className="min-h-screen bg-white grid md:grid-cols-2">
-      {/* Left: photo + quote */}
       <div className="relative hidden md:block">
         <img
           src="/images/farmers/farmer-portrait.jpg"
@@ -52,7 +70,6 @@ function FarmerRegistration() {
         </Link>
       </div>
 
-      {/* Right: form */}
       <motion.div
         initial={{ opacity: 0, x: 16 }}
         animate={{ opacity: 1, x: 0 }}
@@ -70,28 +87,12 @@ function FarmerRegistration() {
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6 max-w-md">
           <div>
-            <p className="text-xs font-semibold tracking-wide text-gray-500 mb-2">
-              PROFILE IDENTITY
-            </p>
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                👤
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Upload a clear portrait. This helps buyers recognize your brand.</p>
-                <button type="button" className="text-sm font-medium text-[var(--color-primary)] mt-1">
-                  Select Image
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div>
             <label className="text-xs font-semibold tracking-wide text-gray-500">
               FULL LEGAL NAME
             </label>
             <input
               type="text"
+              required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Kwame Mensah"
@@ -109,9 +110,10 @@ function FarmerRegistration() {
               </span>
               <input
                 type="tel"
+                required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="024 XXX XXXX"
+                placeholder="24XXXXXXX"
                 className="flex-1 border border-gray-300 rounded-r-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
               />
             </div>
@@ -122,6 +124,7 @@ function FarmerRegistration() {
               AGRICULTURAL REGION
             </label>
             <select
+              required
               value={region}
               onChange={(e) => setRegion(e.target.value)}
               className="mt-2 w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
@@ -133,23 +136,15 @@ function FarmerRegistration() {
             </select>
           </div>
 
-          <p className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />
-            Active registration verified for 2026 harvest season
-          </p>
+          {error && <p className="text-sm text-red-500">{error}</p>}
 
           <div className="flex gap-3">
             <button
               type="submit"
-              className="flex-1 bg-[var(--color-primary)] text-white py-3 rounded-md font-medium hover:brightness-95 active:scale-[0.98] transition-all"
+              disabled={submitting}
+              className="flex-1 bg-[var(--color-primary)] text-white py-3 rounded-md font-medium hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60"
             >
-              Continue Registration →
-            </button>
-            <button
-              type="button"
-              className="border border-gray-300 px-6 py-3 rounded-md font-medium hover:bg-gray-50 transition-colors"
-            >
-              Save Draft
+              {submitting ? 'Registering...' : 'Continue Registration →'}
             </button>
           </div>
         </form>
