@@ -53,16 +53,24 @@ function LoadCard({ order, onAccept }) {
 
 function TransporterLoadBoard() {
   const [orders, setOrders] = useState([])
+  const [view, setView] = useState('available') // 'available' or 'myJobs'
   const { user, loading: userLoading } = useCurrentUser()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  async function fetchAvailableOrders() {
-    const { data, error } = await supabase
+  async function fetchOrders() {
+    let query = supabase
       .from('orders')
       .select('*, listings(crop_type, location, image_url, users(name))')
-      .is('transporter_id', null)
       .order('created_at', { ascending: false })
+
+    if (view === 'available') {
+      query = query.is('transporter_id', null)
+    } else {
+      query = query.eq('transporter_id', user.id)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       setError(error.message)
@@ -73,8 +81,8 @@ function TransporterLoadBoard() {
   }
 
   useEffect(() => {
-    fetchAvailableOrders()
-  }, [])
+    fetchOrders()
+  }, [view, user])
 
   const handleAccept = async (orderId) => {
     const { error } = await supabase
@@ -85,8 +93,9 @@ function TransporterLoadBoard() {
     if (error) {
       setError(error.message)
     } else {
-      // Refresh the list — accepted orders should disappear
-      fetchAvailableOrders()
+      // Refresh and switch to "My Jobs" view
+      setView('myJobs')
+      fetchOrders()
     }
   }
 
@@ -126,10 +135,36 @@ function TransporterLoadBoard() {
       <main className="max-w-6xl mx-auto px-6 md:px-10 py-10">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="font-[var(--font-heading)] text-3xl md:text-4xl">Transporter Load Board</h1>
+            <h1 className="font-[var(--font-heading)] text-3xl md:text-4xl">
+              {view === 'available' ? 'Available Loads' : 'My Active Jobs'}
+            </h1>
             <p className="mt-2 text-gray-600 text-sm max-w-md">
-              Discover and secure high-value delivery jobs across the Bono East region.
+              {view === 'available' 
+                ? 'Discover and secure high-value delivery jobs across the Bono East region.'
+                : 'Your accepted deliveries and their status.'}
             </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setView('available')}
+              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${
+                view === 'available'
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'border-gray-300 text-gray-600'
+              }`}
+            >
+              Available Loads
+            </button>
+            <button
+              onClick={() => setView('myJobs')}
+              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${
+                view === 'myJobs'
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'border-gray-300 text-gray-600'
+              }`}
+            >
+              My Jobs
+            </button>
           </div>
         </div>
         {!userLoading && !user && (

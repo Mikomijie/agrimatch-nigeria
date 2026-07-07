@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
@@ -28,7 +28,7 @@ function FarmerDashboard() {
   const [success, setSuccess] = useState(false)
   const [imageFile, setImageFile] = useState(null)
   const [uploading, setUploading] = useState(false)
-
+  const [myListings, setMyListings] = useState([])
   const handlePublish = async (e) => {
     e.preventDefault()
     setSubmitting(true)
@@ -83,6 +83,18 @@ function FarmerDashboard() {
       setImageFile(null)
     }
   }
+  useEffect(() => {
+    async function fetchMyListings() {
+      if (!user) return
+      const { data } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('farmer_id', user.id)
+        .order('created_at', { ascending: false })
+      setMyListings(data || [])
+    }
+    fetchMyListings()
+  }, [user, success])
 if (userLoading) return <p className="p-10 text-center text-gray-500">Loading...</p>
   if (!user) return (
     <div className="p-10 text-center">
@@ -253,6 +265,24 @@ if (userLoading) return <p className="p-10 text-center text-gray-500">Loading...
         </form>
 
         <aside className="space-y-6">
+          <div className="border border-gray-200 rounded-lg p-5">
+            <h2 className="font-[var(--font-heading)] text-xl">My Active Listings</h2>
+            {myListings.length === 0 && (
+              <p className="text-sm text-gray-500 mt-2">You haven't listed any produce yet.</p>
+            )}
+            <div className="mt-3 space-y-3">
+              {myListings.map((l) => (
+                <div key={l.id} className="flex items-center gap-3 text-sm">
+                  <img src={l.image_url} alt={l.crop_type} className="w-10 h-10 rounded-md object-cover" />
+                  <div>
+                    <p className="font-medium">{l.crop_type}</p>
+                    <p className="text-xs text-gray-500">{l.quantity}kg · GH₵{l.price_per_unit}/kg</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="border border-gray-200 rounded-lg p-5 bg-[var(--color-background-warm)]">
             <h2 className="font-[var(--font-heading)] text-xl">Market Insight</h2>
             <p className="mt-2 text-sm text-gray-600">

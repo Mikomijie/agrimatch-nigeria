@@ -4,6 +4,7 @@ import FarmerDashboard from './pages/FarmerDashboard'
 import Landing from './pages/Landing'
 import BuyerMarketplace from './pages/BuyerMarketplace'
 import OrderTracking from './pages/OrderTracking'
+import BuyerOrderHistory from './pages/BuyerOrderHistory'
 import TransporterLoadBoard from './pages/TransporterLoadBoard'
 import RatingsReviews from './pages/RatingsReviews'
 import USSDSimulator from './pages/USSDSimulator'
@@ -16,7 +17,8 @@ function App() {
         <Route path="/dashboard" element={<FarmerDashboard />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/marketplace" element={<BuyerMarketplace />} />
-        <Route path="/tracking" element={<OrderTracking />} />
+        <Route path="/buyer-orders" element={<BuyerOrderHistory />} />
+        <Route path="/tracking/:orderId" element={<OrderTracking />} />
         <Route path="/logistics" element={<TransporterLoadBoard />} />
         <Route path="/register" element={<Auth />} />
         <Route path="/reviews" element={<RatingsReviews />} />

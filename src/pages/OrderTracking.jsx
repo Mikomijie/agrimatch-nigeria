@@ -1,3 +1,5 @@
+import { useParams } from 'react-router-dom'
+import { useCurrentUser } from '../lib/useCurrentUser'
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -17,13 +19,17 @@ function OrderTracking() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const { orderId } = useParams()
+  const { user, loading: userLoading } = useCurrentUser()
+
   useEffect(() => {
-    async function fetchLatestOrder() {
+    async function fetchOrder() {
+      if (!orderId) return
+      
       const { data, error } = await supabase
         .from('orders')
         .select('*, listings(crop_type, location, quantity, image_url, users(name))')
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .eq('id', orderId)
         .single()
 
       if (error) {
@@ -34,12 +40,17 @@ function OrderTracking() {
       setLoading(false)
     }
 
-    fetchLatestOrder()
-  }, [])
+    fetchOrder()
+  }, [orderId])
 
   if (loading) return <p className="p-10 text-center text-gray-500">Loading order...</p>
   if (error) return <p className="p-10 text-center text-red-500">Error: {error}</p>
-  if (!order) return <p className="p-10 text-center text-gray-500">No orders yet.</p>
+  if (!order) return (
+    <div className="p-10 text-center">
+      <p className="text-gray-500">Order not found.</p>
+      <Link to="/buyer-orders" className="text-[var(--color-primary)] underline mt-2 inline-block">Back to orders →</Link>
+    </div>
+  )
 
   const currentStepIndex = STATUS_STEPS.indexOf(order.status)
 
