@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-
-// Temporary: using a seeded farmer ID until real auth is wired up
-const TEMP_FARMER_ID = '11111111-1111-1111-1111-111111111111'
-
+import { useCurrentUser } from '../lib/useCurrentUser'
 const CROPS = [
   { id: 'Tomatoes', label: 'Tomatoes', image: '/images/produce/tomatoes.jpg' },
   { id: 'Peppers', label: 'Peppers', image: '/images/produce/peppers.jpg' },
@@ -20,6 +17,7 @@ const FRESHNESS_OPTIONS = [
 
 function FarmerDashboard() {
   const navigate = useNavigate()
+  const { user, loading: userLoading } = useCurrentUser()
   const [selectedCrop, setSelectedCrop] = useState('Tomatoes')
   const [freshness, setFreshness] = useState('Harvested Today')
   const [quantity, setQuantity] = useState('')
@@ -28,6 +26,8 @@ function FarmerDashboard() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const [imageFile, setImageFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
 
   const handlePublish = async (e) => {
     e.preventDefault()
@@ -35,16 +35,40 @@ function FarmerDashboard() {
     setError(null)
     setSuccess(false)
 
-    const cropImage = CROPS.find((c) => c.id === selectedCrop)?.image
+    let imageUrl = CROPS.find((c) => c.id === selectedCrop)?.image // fallback default
+
+    if (imageFile) {
+      setUploading(true)
+      const fileExt = imageFile.name.split('.').pop()
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('produce-images')
+        .upload(fileName, imageFile)
+
+      setUploading(false)
+
+      if (uploadError) {
+        setError(uploadError.message)
+        setSubmitting(false)
+        return
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('produce-images')
+        .getPublicUrl(fileName)
+
+      imageUrl = publicUrlData.publicUrl
+    }
 
     const { error } = await supabase.from('listings').insert({
-      farmer_id: TEMP_FARMER_ID,
+      farmer_id: user.id,
       crop_type: selectedCrop,
       quantity: Number(quantity),
       price_per_unit: Number(price),
       location,
       freshness,
-      image_url: cropImage,
+      image_url: imageUrl,
     })
 
     setSubmitting(false)
@@ -56,9 +80,16 @@ function FarmerDashboard() {
       setQuantity('')
       setPrice('')
       setLocation('')
+      setImageFile(null)
     }
   }
-
+if (userLoading) return <p className="p-10 text-center text-gray-500">Loading...</p>
+  if (!user) return (
+    <div className="p-10 text-center">
+      <p className="text-gray-500">Please log in to access the farmer dashboard.</p>
+      <Link to="/auth" className="text-[var(--color-primary)] underline mt-2 inline-block">Go to Login</Link>
+    </div>
+  )
   return (
     <div className="min-h-screen bg-white">
       <header className="flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-background-warm)] border-b border-gray-200">
@@ -70,6 +101,18 @@ function FarmerDashboard() {
           <span className="pb-1 border-b-2 border-[var(--color-primary)]">Dashboard</span>
           <Link to="/logistics">Logistics</Link>
         </nav>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500 hidden sm:inline">Logged in as {user?.name}</span>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut()
+              window.location.href = '/'
+            }}
+            className="text-xs border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Log Out
+          </button>
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 md:px-10 py-12 grid md:grid-cols-3 gap-12">
@@ -107,7 +150,17 @@ function FarmerDashboard() {
               ))}
             </div>
           </div>
-
+          <div>
+            <label className="text-xs font-semibold tracking-wide text-gray-500">
+              UPLOAD A REAL PHOTO (OPTIONAL — uses default crop image if skipped)
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files[0])}
+              className="mt-2 w-full text-sm border border-gray-300 rounded-md px-3 py-2 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-[var(--color-primary)] file:text-white file:text-xs"
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold tracking-wide text-gray-500">
@@ -177,12 +230,12 @@ function FarmerDashboard() {
           {success && <p className="text-sm text-[var(--color-primary)]">✓ Listing published successfully!</p>}
 
           <div className="flex gap-3 pt-2">
-            <button
+              <button
               type="submit"
               disabled={submitting}
               className="bg-[var(--color-secondary)] text-white px-6 py-3 rounded-md font-medium tracking-wide hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60"
             >
-              {submitting ? 'PUBLISHING...' : 'PUBLISH LISTING'}
+              {uploading ? 'UPLOADING PHOTO...' : submitting ? 'PUBLISHING...' : 'PUBLISH LISTING'}
             </button>
             <Link
               to="/marketplace"
@@ -190,6 +243,12 @@ function FarmerDashboard() {
             >
               VIEW MARKETPLACE
             </Link>
+            <Link
+  to="/ussd"
+  className="border border-[var(--color-primary)] text-[var(--color-primary)] px-6 py-3 rounded-md font-medium tracking-wide hover:bg-[var(--color-primary)]/5 transition-colors"
+>
+  📵 TRY LOW-CONNECTIVITY MODE
+</Link>
           </div>
         </form>
 

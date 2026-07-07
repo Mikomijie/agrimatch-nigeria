@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
+import { getRecommended } from '../lib/matching'
 
 const CATEGORIES = ['All Produce', 'Tubers', 'Grains', 'Legumes', 'Fruits', 'Vegetables']
 
@@ -75,7 +76,7 @@ function BuyerMarketplace() {
 
     fetchListings()
   }, [])
-
+  const recommended = getRecommended(listings, 3)
   const filtered = listings.filter((item) =>
     item.crop_type.toLowerCase().includes(search.toLowerCase())
   )
@@ -91,6 +92,9 @@ function BuyerMarketplace() {
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/logistics">Logistics</Link>
         </nav>
+        <Link to="/auth" className="text-xs border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+          Login / Sign Up
+        </Link>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 md:px-10 py-10">
@@ -128,13 +132,31 @@ function BuyerMarketplace() {
         {loading && <p className="mt-12 text-center text-gray-500">Loading harvests...</p>}
         {error && <p className="mt-12 text-center text-red-500">Error: {error}</p>}
 
-        {!loading && !error && (
-          <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((item) => (
-              <ProductCard key={item.id} item={item} />
-            ))}
-          </div>
-        )}
+        {!loading && !error && recommended.length > 0 && (
+  <div className="mt-8">
+    <div className="flex items-center gap-2 mb-4">
+      <span className="w-2 h-2 rounded-full bg-[var(--color-secondary)] animate-pulse" />
+      <h2 className="font-[var(--font-heading)] text-xl">Recommended For You</h2>
+      <span className="text-xs text-gray-400">— matched by freshness & price</span>
+    </div>
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {recommended.map((item) => (
+        <ProductCard key={item.id} item={item} />
+      ))}
+    </div>
+  </div>
+)}
+
+{!loading && !error && (
+  <div className="mt-12">
+    <h2 className="font-[var(--font-heading)] text-xl mb-4">All Produce</h2>
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {filtered.map((item) => (
+        <ProductCard key={item.id} item={item} />
+      ))}
+    </div>
+  </div>
+)}
 
         {!loading && !error && filtered.length === 0 && (
           <p className="mt-12 text-center text-gray-500">No produce matches your search.</p>

@@ -5,8 +5,9 @@ import Landing from './pages/Landing'
 import BuyerMarketplace from './pages/BuyerMarketplace'
 import OrderTracking from './pages/OrderTracking'
 import TransporterLoadBoard from './pages/TransporterLoadBoard'
-import FarmerRegistration from './pages/FarmerRegistration'
 import RatingsReviews from './pages/RatingsReviews'
+import USSDSimulator from './pages/USSDSimulator'
+import Auth from './pages/Auth'
 function App() {
   return (
     <BrowserRouter>
@@ -17,8 +18,10 @@ function App() {
         <Route path="/marketplace" element={<BuyerMarketplace />} />
         <Route path="/tracking" element={<OrderTracking />} />
         <Route path="/logistics" element={<TransporterLoadBoard />} />
-        <Route path="/register" element={<FarmerRegistration />} />
+        <Route path="/register" element={<Auth />} />
         <Route path="/reviews" element={<RatingsReviews />} />
+        <Route path="/ussd" element={<USSDSimulator />} />
+        <Route path="/auth" element={<Auth />} />
       </Routes>
     </BrowserRouter>
   )

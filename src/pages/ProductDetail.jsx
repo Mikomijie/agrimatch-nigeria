@@ -2,11 +2,11 @@ import { Link, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
-// Temporary: using a seeded buyer ID until real auth is wired up
-const TEMP_BUYER_ID = '55555555-5555-5555-5555-555555555555'
+import { useCurrentUser } from '../lib/useCurrentUser'
 
 function ProductDetail() {
   const { id } = useParams()
+  const { user, loading: userLoading } = useCurrentUser()
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -36,7 +36,13 @@ function ProductDetail() {
   if (loading) return <p className="p-10 text-center text-gray-500">Loading...</p>
   if (error) return <p className="p-10 text-center text-red-500">Error: {error}</p>
   if (!product) return <p className="p-10 text-center text-gray-500">Product not found.</p>
-
+  if (userLoading) return <p className="p-10 text-center text-gray-500">Loading...</p>
+  if (!user) return (
+    <div className="p-10 text-center">
+      <p className="text-gray-500">Please log in to place an order.</p>
+      <Link to="/auth" className="text-[var(--color-primary)] underline mt-2 inline-block">Go to Login</Link>
+    </div>
+  )
   const subtotal = quantity * product.price_per_unit
   const logisticsFee = 45
   const total = subtotal + logisticsFee
@@ -44,7 +50,7 @@ function ProductDetail() {
   const handleOrder = async () => {
     const { error } = await supabase.from('orders').insert({
       listing_id: product.id,
-      buyer_id: TEMP_BUYER_ID,
+      buyer_id: user.id,
       quantity: quantity,
       total_price: total,
       status: 'pending',

@@ -2,9 +2,8 @@ import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
+import { useCurrentUser } from '../lib/useCurrentUser'
 
-// Temporary: using a seeded transporter ID until real auth is wired up
-const TEMP_TRANSPORTER_ID = '66666666-6666-6666-6666-666666666666'
 
 function LoadCard({ order, onAccept }) {
   return (
@@ -54,6 +53,7 @@ function LoadCard({ order, onAccept }) {
 
 function TransporterLoadBoard() {
   const [orders, setOrders] = useState([])
+  const { user, loading: userLoading } = useCurrentUser()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -79,7 +79,7 @@ function TransporterLoadBoard() {
   const handleAccept = async (orderId) => {
     const { error } = await supabase
       .from('orders')
-      .update({ transporter_id: TEMP_TRANSPORTER_ID, status: 'confirmed' })
+      .update({ transporter_id: user.id, status: 'confirmed' })
       .eq('id', orderId)
 
     if (error) {
@@ -101,6 +101,26 @@ function TransporterLoadBoard() {
           <Link to="/dashboard">Dashboard</Link>
           <span className="pb-1 border-b-2 border-[var(--color-primary)]">Logistics</span>
         </nav>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500 hidden sm:inline">
+            {user ? `Logged in as ${user.name}` : ''}
+          </span>
+          {user ? (
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut()
+                window.location.href = '/'
+              }}
+              className="text-xs border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Log Out
+            </button>
+          ) : (
+            <Link to="/auth" className="text-xs border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+              Login / Sign Up
+            </Link>
+          )}
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 md:px-10 py-10">
@@ -112,11 +132,16 @@ function TransporterLoadBoard() {
             </p>
           </div>
         </div>
-
+        {!userLoading && !user && (
+          <div className="mt-12 text-center">
+            <p className="text-gray-500">Please log in as a transporter to accept loads.</p>
+            <Link to="/auth" className="text-[var(--color-primary)] underline mt-2 inline-block">Go to Login</Link>
+          </div>
+        )}
         {loading && <p className="mt-12 text-center text-gray-500">Loading available loads...</p>}
         {error && <p className="mt-12 text-center text-red-500">Error: {error}</p>}
 
-        {!loading && !error && (
+        {user && !loading && !error && (
           <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {orders.map((order) => (
               <LoadCard key={order.id} order={order} onAccept={handleAccept} />

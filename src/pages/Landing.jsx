@@ -77,7 +77,7 @@ function Landing() {
           </p>
           <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-6">
             <Link
-              to="/dashboard"
+              to="/auth"
               className="inline-block bg-[var(--color-secondary)] text-white px-6 py-3 rounded-md font-medium tracking-wide hover:brightness-95 transition-all"
             >
               GET STARTED
@@ -179,7 +179,7 @@ function Landing() {
         >
           <motion.div whileTap={{ scale: 0.96 }}>
             <Link
-              to="/dashboard"
+              to="/auth"
               className="inline-block bg-[var(--color-primary)] text-white px-6 py-3 rounded-md font-medium"
             >
               JOIN THE NETWORK
