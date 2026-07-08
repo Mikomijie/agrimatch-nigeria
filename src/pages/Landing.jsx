@@ -55,41 +55,41 @@ function Landing() {
       </header>
 
     {/* Hero */}
-      <section className="bg-white px-6 md:px-10 py-16 md:py-24">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
-          >
-            <h1 className="font-[var(--font-heading)] text-4xl md:text-6xl text-[var(--color-charcoal)] leading-tight">
-              Connecting <span className="italic text-[var(--color-secondary)]">Ghana's Harvest</span>
-            </h1>
-            <p className="mt-4 text-gray-600 max-w-md text-lg">
-              Eliminating post-harvest loss through a direct, high-performance marketplace for
-              premium Ghanaian produce.
-            </p>
-            <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-6">
-              <Link
-                to="/auth"
-                className="inline-block bg-[var(--color-secondary)] text-white px-6 py-3 rounded-md font-medium tracking-wide hover:brightness-95 transition-all"
-              >
-                GET STARTED
-              </Link>
-            </motion.div>
+      <section 
+        className="relative h-[500px] md:h-[600px] flex items-center justify-center overflow-hidden"
+        style={{
+          backgroundImage: 'url(/images/market/market-general.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <div className="absolute inset-0 bg-black/40" />
+        <motion.div
+          className="relative z-10 text-center px-6 max-w-2xl mx-auto"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        >
+          <h1 className="font-[var(--font-heading)] text-4xl md:text-6xl text-white leading-tight">
+            Connecting <span className="italic">Ghana's Harvest</span>
+          </h1>
+          <p className="mt-4 text-white/90 text-lg mx-auto">
+            Eliminating post-harvest loss through a direct, high-performance marketplace for
+            premium Ghanaian produce.
+          </p>
+          <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-8">
+            <Link
+              to="/auth"
+              className="inline-block bg-[var(--color-secondary)] text-white px-8 py-3 rounded-md font-medium tracking-wide hover:brightness-95 transition-all"
+            >
+              GET STARTED
+            </Link>
           </motion.div>
-        </div>
-        <div className="mt-10 md:mt-14">
-          <img
-            src="/images/market/market-general.jpg"
-            alt="Ghana farm at golden hour"
-            className="w-full h-auto max-h-96 object-cover rounded-lg"
-          />
-        </div>
+        </motion.div>
       </section>
 
       {/* Stats strip */}
-      <section className="bg-[var(--color-primary)] text-white px-6 md:px-10 py-3 flex flex-wrap gap-6 justify-center text-xs md:text-sm tracking-wide">
+      <section className="bg-[var(--color-primary)] text-white px-6 md:px-10 py-6 md:py-3 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 text-center text-xs md:text-sm tracking-wide">
         <span>HARVESTED TODAY IN TECHIMAN</span>
         <span>POST-HARVEST LOSS REDUCED BY 34%</span>
         <span>LIVE LOGISTICS TRACKING</span>
@@ -149,7 +149,7 @@ function Landing() {
       </AnimatedSection>
   
       {/* Bottom stats */}
-      <AnimatedSection className="bg-[var(--color-primary-light)]/40 px-6 md:px-10 py-14 grid grid-cols-3 gap-6 text-center">
+      <AnimatedSection className="bg-[var(--color-primary-light)]/40 px-6 md:px-10 py-14 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 text-center">
         <div>
           <Counter value="40" suffix="%" />
           <p className="text-xs text-gray-600 mt-1">
@@ -192,12 +192,14 @@ function Landing() {
               JOIN THE NETWORK
             </Link>
           </motion.div>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            className="border border-gray-300 px-6 py-3 rounded-md font-medium"
-          >
-            LEARN MORE
-          </motion.button>
+          <motion.div whileTap={{ scale: 0.96 }}>
+            <Link
+              to="/marketplace"
+              className="inline-block border border-[var(--color-primary)] text-[var(--color-primary)] px-6 py-3 rounded-md font-medium hover:bg-[var(--color-primary)]/5 transition-colors"
+            >
+              LEARN MORE
+            </Link>
+          </motion.div>
         </motion.div>
       </AnimatedSection>
 
