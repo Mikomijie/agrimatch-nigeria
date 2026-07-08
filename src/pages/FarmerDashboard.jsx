@@ -127,8 +127,8 @@ if (userLoading) return <p className="p-10 text-center text-gray-500">Loading...
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 md:px-10 py-12 grid md:grid-cols-3 gap-12">
-        <form onSubmit={handlePublish} className="md:col-span-2 space-y-8">
+      <main className="max-w-6xl mx-auto px-6 md:px-10 py-12 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-12">
+        <form onSubmit={handlePublish} className="md:col-span-2 space-y-6 md:space-y-8">
           <div>
             <h1 className="font-[var(--font-heading)] text-4xl md:text-5xl leading-tight">
               List your fresh <span className="italic text-[var(--color-secondary)]">harvest today.</span>
@@ -264,7 +264,7 @@ if (userLoading) return <p className="p-10 text-center text-gray-500">Loading...
           </div>
         </form>
 
-        <aside className="space-y-6">
+        <aside className="space-y-6 md:col-start-3">
           <div className="border border-gray-200 rounded-lg p-5">
             <h2 className="font-[var(--font-heading)] text-xl">My Active Listings</h2>
             {myListings.length === 0 && (
