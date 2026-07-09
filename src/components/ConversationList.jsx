@@ -34,23 +34,27 @@ function ConversationList({ currentUser, onSelectConversation }) {
         return
       }
 
-      // Get unique partners
+      // Get unique partner IDs first
+      const partnerIds = [...new Set(data.map(msg => 
+        msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id
+      ))]
+
+      // Batch fetch all partner names in ONE query
+      const { data: partners } = await supabase
+        .from('users')
+        .select('id, name')
+        .in('id', partnerIds)
+
+      const partnerMap = Object.fromEntries((partners || []).map(p => [p.id, p.name]))
+
+      // Group messages by partner
       const grouped = {}
-      
       for (const msg of data) {
         const partnerId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id
-        
         if (!grouped[partnerId]) {
-          // Fetch partner name
-          const { data: partnerData } = await supabase
-            .from('users')
-            .select('name')
-            .eq('id', partnerId)
-            .single()
-
           grouped[partnerId] = {
             id: partnerId,
-            name: partnerData?.name || 'Unknown',
+            name: partnerMap[partnerId] || 'Unknown',
             lastMessage: msg.content,
             lastTime: msg.created_at,
           }
