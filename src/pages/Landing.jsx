@@ -160,44 +160,59 @@ function Landing() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Card 1 */}
             <motion.div 
               variants={fadeUp}
               transition={{ duration: 0.6 }}
-              className="text-center p-6 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow"
+              className="p-8 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow group"
             >
-              <div className="text-4xl mb-4">📊</div>
+              <div className="w-12 h-12 bg-[#E8F5E9] rounded-lg flex items-center justify-center mb-6 group-hover:bg-[#1B5E20] transition-colors">
+                <span className="font-[var(--font-heading)] text-xl font-bold text-[#1B5E20] group-hover:text-white transition-colors">
+                  01
+                </span>
+              </div>
               <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">
                 Real-Time Pricing
               </h3>
-              <p className="mt-2 text-gray-600 text-sm">
+              <p className="mt-3 text-gray-600 text-sm leading-relaxed">
                 No middlemen. Get fair prices updated daily based on live market data.
               </p>
             </motion.div>
 
+            {/* Card 2 */}
             <motion.div 
               variants={fadeUp}
               transition={{ duration: 0.6 }}
-              className="text-center p-6 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow"
+              className="p-8 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow group"
             >
-              <div className="text-4xl mb-4">✓</div>
+              <div className="w-12 h-12 bg-[#FFE8D6] rounded-lg flex items-center justify-center mb-6 group-hover:bg-[#BF360C] transition-colors">
+                <span className="font-[var(--font-heading)] text-xl font-bold text-[#BF360C] group-hover:text-white transition-colors">
+                  02
+                </span>
+              </div>
               <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">
                 Verified Farmers
               </h3>
-              <p className="mt-2 text-gray-600 text-sm">
+              <p className="mt-3 text-gray-600 text-sm leading-relaxed">
                 Every producer is vetted. Trace every kilogram back to its source.
               </p>
             </motion.div>
 
+            {/* Card 3 */}
             <motion.div 
               variants={fadeUp}
               transition={{ duration: 0.6 }}
-              className="text-center p-6 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow"
+              className="p-8 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow group"
             >
-              <div className="text-4xl mb-4">⚡</div>
+              <div className="w-12 h-12 bg-[#E1F5FE] rounded-lg flex items-center justify-center mb-6 group-hover:bg-[#0D47A1] transition-colors">
+                <span className="font-[var(--font-heading)] text-xl font-bold text-[#0D47A1] group-hover:text-white transition-colors">
+                  03
+                </span>
+              </div>
               <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">
                 Fast Logistics
               </h3>
-              <p className="mt-2 text-gray-600 text-sm">
+              <p className="mt-3 text-gray-600 text-sm leading-relaxed">
                 Farm to buyer in 12 hours. Coordinated, reliable transport network.
               </p>
             </motion.div>
