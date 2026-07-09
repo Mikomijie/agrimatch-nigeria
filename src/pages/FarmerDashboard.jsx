@@ -481,7 +481,7 @@ function FarmerDashboard() {
    </main>
 
       {/* Chat Button - Desktop & Mobile */}
-      {!showChat && (
+      {!showChat && !selectedChat && (
         <button
           onClick={() => setShowChat(true)}
           className="fixed right-6 bottom-6 w-14 h-14 rounded-full bg-[#2E7D32] text-white flex items-center justify-center shadow-lg hover:brightness-95 transition-all z-40 text-2xl"
@@ -492,7 +492,7 @@ function FarmerDashboard() {
       )}
 
       {/* Chat Panel - Desktop */}
-      {showChat && (
+      {showChat && !selectedChat && (
         <div className="hidden md:flex gap-4 fixed right-6 bottom-6 z-40">
           <div className="w-96 h-96 shadow-xl">
             <ConversationList
@@ -503,16 +503,23 @@ function FarmerDashboard() {
               }}
             />
           </div>
-          {selectedChat && (
-            <div className="w-96 h-96 shadow-xl">
-              <ChatWindow
-                conversationWith={selectedChat}
-                conversationName={chatName}
-                currentUser={user}
-                onClose={() => setSelectedChat(null)}
-              />
-            </div>
-          )}
+        </div>
+      )}
+
+      {/* Direct Chat Window (when selectedChat is already set) */}
+      {selectedChat && (
+        <div className="hidden md:flex gap-4 fixed right-6 bottom-6 z-40">
+          <div className="w-96 h-96 shadow-xl">
+            <ChatWindow
+              conversationWith={selectedChat}
+              conversationName={chatName}
+              currentUser={user}
+              onClose={() => {
+                setSelectedChat(null)
+                setShowChat(false)
+              }}
+            />
+          </div>
         </div>
       )}
 

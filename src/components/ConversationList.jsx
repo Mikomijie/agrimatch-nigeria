@@ -10,34 +10,58 @@ function ConversationList({ currentUser, onSelectConversation }) {
   }, [currentUser])
 
   const fetchConversations = async () => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*, sender:sender_id(name), receiver:receiver_id(name)')
-      .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
-      .order('created_at', { ascending: false })
+    try {
+      setLoading(true)
+      
+      // Simple query - just get all messages for this user
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id, sender_id, receiver_id, content, created_at')
+        .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+        .order('created_at', { ascending: false })
+        .limit(100)
 
-    if (error) {
-      console.error('Failed to fetch conversations:', error)
-    } else {
-      // Group by conversation partner
+      if (error) {
+        console.error('Fetch error:', error)
+        setConversations([])
+        setLoading(false)
+        return
+      }
+
+      if (!data || data.length === 0) {
+        setConversations([])
+        setLoading(false)
+        return
+      }
+
+      // Get unique partners
       const grouped = {}
-      data.forEach((msg) => {
-        const partnerId =
-          msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id
-        const partnerName =
-          msg.sender_id === currentUser.id ? msg.receiver?.name : msg.sender?.name
-
+      
+      for (const msg of data) {
+        const partnerId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id
+        
         if (!grouped[partnerId]) {
+          // Fetch partner name
+          const { data: partnerData } = await supabase
+            .from('users')
+            .select('name')
+            .eq('id', partnerId)
+            .single()
+
           grouped[partnerId] = {
             id: partnerId,
-            name: partnerName,
+            name: partnerData?.name || 'Unknown',
             lastMessage: msg.content,
             lastTime: msg.created_at,
           }
         }
-      })
+      }
 
       setConversations(Object.values(grouped))
+      setLoading(false)
+    } catch (err) {
+      console.error('Error:', err)
+      setConversations([])
       setLoading(false)
     }
   }

@@ -297,12 +297,24 @@ function BuyerMarketplace() {
                       </div>
 
                       {/* Order Button */}
-                      <Link
-                        to={`/product/${listing.id}`}
-                        className="block mt-4 w-full bg-[var(--color-secondary)] text-white px-4 py-2 rounded-md text-sm font-medium text-center hover:brightness-95 transition-all active:scale-[0.98]"
-                      >
-                        View & Order
-                      </Link>
+                      <div className="mt-4 space-y-2">
+                        <Link
+                          to={`/product/${listing.id}`}
+                          className="block w-full bg-[var(--color-secondary)] text-white px-4 py-2 rounded-md text-sm font-medium text-center hover:brightness-95 transition-all active:scale-[0.98]"
+                        >
+                          View & Order
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setSelectedChat(listing.farmer_id)
+                            setChatName(listing.users?.name)
+                            setShowChat(true)
+                          }}
+                          className="w-full border border-[#2E7D32] text-[#2E7D32] px-4 py-2 rounded-md text-sm font-medium hover:bg-[#E8F5E9] transition-all"
+                        >
+                          Message Farmer
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -327,7 +339,7 @@ function BuyerMarketplace() {
      </footer>
 
       {/* Chat Button - Desktop & Mobile */}
-      {!showChat && (
+      {!showChat && !selectedChat && (
         <button
           onClick={() => setShowChat(true)}
           className="fixed right-6 bottom-6 w-14 h-14 rounded-full bg-[#2E7D32] text-white flex items-center justify-center shadow-lg hover:brightness-95 transition-all z-40 text-2xl"
@@ -338,7 +350,7 @@ function BuyerMarketplace() {
       )}
 
       {/* Chat Panel - Desktop */}
-      {showChat && (
+      {showChat && !selectedChat && (
         <div className="hidden md:flex gap-4 fixed right-6 bottom-6 z-40">
           <div className="w-96 h-96 shadow-xl">
             <ConversationList
@@ -349,16 +361,23 @@ function BuyerMarketplace() {
               }}
             />
           </div>
-          {selectedChat && (
-            <div className="w-96 h-96 shadow-xl">
-              <ChatWindow
-                conversationWith={selectedChat}
-                conversationName={chatName}
-                currentUser={user}
-                onClose={() => setSelectedChat(null)}
-              />
-            </div>
-          )}
+        </div>
+      )}
+
+      {/* Direct Chat Window (when selectedChat is already set) */}
+      {selectedChat && (
+        <div className="hidden md:flex gap-4 fixed right-6 bottom-6 z-40">
+          <div className="w-96 h-96 shadow-xl">
+            <ChatWindow
+              conversationWith={selectedChat}
+              conversationName={chatName}
+              currentUser={user}
+              onClose={() => {
+                setSelectedChat(null)
+                setShowChat(false)
+              }}
+            />
+          </div>
         </div>
       )}
 
