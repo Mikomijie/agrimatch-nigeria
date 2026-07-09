@@ -1,222 +1,324 @@
+import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
-import { getRecommended } from '../lib/matching'
 import { useCurrentUser } from '../lib/useCurrentUser'
 
-const CATEGORIES = ['All Produce', 'Tomatoes', 'Peppers', 'Garden Eggs', 'Okra']
-
-function ProductCard({ item }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.3 }}
-      transition={{ duration: 0.5 }}
-      className="border-2 border-gray-200 rounded-lg sm:rounded-xl overflow-hidden group shadow-sm hover:shadow-md transition-shadow"
-    >
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-        <img
-          src={item.image_url}
-          alt={item.crop_type}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-        />
-        <div className="absolute top-3 left-3 flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg text-xs font-bold">
-          <span className="w-2 h-2 rounded-full bg-[#1B5E20] animate-pulse" />
-          {item.freshness}
-        </div>
-      </div>
-      <div className="p-4 sm:p-5">
-        <h3 className="font-bold text-lg text-gray-900">{item.crop_type}</h3>
-        <p className="text-xs text-gray-600 mt-1">
-          {item.users?.name} · {item.location}
-        </p>
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-xl font-bold text-[#1B5E20]">
-            GH₵{item.price_per_unit}
-            <span className="text-xs text-gray-600 font-normal">/kg</span>
-          </p>
-        </div>
-        <Link
-          to={`/product/${item.id}`}
-          className="mt-4 block w-full text-center bg-[#1B5E20] text-white py-2.5 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all text-sm"
-        >
-          View & Order
-        </Link>
-      </div>
-    </motion.div>
-  )
-}
+const CROP_TYPES = ['Tomatoes', 'Peppers', 'Garden Eggs', 'Okra']
+const REGIONS = ['Bono East', 'Ashanti', 'Northern', 'Eastern', 'Volta', 'Greater Accra']
 
 function BuyerMarketplace() {
-  const navigate = useNavigate()
-  const { user } = useCurrentUser()
-  const [activeCategory, setActiveCategory] = useState('All Produce')
-  const [search, setSearch] = useState('')
+  const { user, loading: userLoading } = useCurrentUser()
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  // Filter states
+  const [selectedCrop, setSelectedCrop] = useState('')
+  const [selectedLocation, setSelectedLocation] = useState('')
+  const [priceRange, setPriceRange] = useState([0, 5000])
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Fetch listings with filters
   useEffect(() => {
     async function fetchListings() {
-      const { data, error } = await supabase
+      let query = supabase
         .from('listings')
-        .select('*, users(name)')
-        .eq('is_available', true)
+        .select('*, users(name, region, rating)')
         .order('created_at', { ascending: false })
 
+      // Apply crop type filter
+      if (selectedCrop) {
+        query = query.eq('crop_type', selectedCrop)
+      }
+
+      // Apply location filter
+      if (selectedLocation) {
+        query = query.eq('location', selectedLocation)
+      }
+
+      const { data, error } = await query
+
       if (error) {
-        console.error(error)
         setError(error.message)
       } else {
-        setListings(data)
+        // Apply price range filter (client-side for better performance)
+        const filtered = data.filter(
+          (listing) =>
+            Number(listing.price_per_unit) >= priceRange[0] &&
+            Number(listing.price_per_unit) <= priceRange[1]
+        )
+        setListings(filtered)
       }
       setLoading(false)
     }
 
     fetchListings()
-  }, [])
+  }, [selectedCrop, selectedLocation, priceRange])
 
-  const recommended = getRecommended(listings, 3)
-  const filtered = listings.filter((item) =>
-    item.crop_type.toLowerCase().includes(search.toLowerCase())
-  )
+  // Reset filters
+  const resetFilters = () => {
+    setSelectedCrop('')
+    setSelectedLocation('')
+    setPriceRange([0, 5000])
+  }
+
+  const activeFilterCount = [selectedCrop, selectedLocation].filter(Boolean).length
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FAFAF8] to-[#F5F3F0]">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
-          <div className="flex items-center justify-between gap-4">
-            <Link to="/" className="text-2xl sm:text-3xl font-bold text-[#1B5E20] flex-shrink-0">
-              AgriMatch
+      <header className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 py-5 bg-[#0F1C2E] backdrop-blur-sm border-b border-gray-700">
+        <Link to="/" className="font-[var(--font-heading)] italic text-2xl text-white">
+          AgriMatch
+        </Link>
+        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
+          <span className="text-gray-300">Marketplace</span>
+          <Link to="/dashboard" className="text-gray-300 hover:text-white">
+            Dashboard
+          </Link>
+          <Link to="/logistics" className="text-gray-300 hover:text-white">
+            Logistics
+          </Link>
+        </nav>
+        <div className="flex items-center gap-3">
+          {user && <span className="text-xs text-gray-400 hidden sm:inline">Logged in as {user?.name}</span>}
+          {user && (
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut()
+                window.location.href = '/'
+              }}
+              className="text-xs border border-gray-600 text-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-800 transition-colors"
+            >
+              Log Out
+            </button>
+          )}
+          {!user && (
+            <Link
+              to="/auth"
+              className="text-xs border border-gray-600 text-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-800 transition-colors"
+            >
+              Log In
             </Link>
-            <nav className="hidden md:flex items-center gap-6 sm:gap-8 text-sm font-medium flex-1 justify-center">
-              <button
-                onClick={() => window.history.back()}
-                className="text-gray-600 hover:text-[#1B5E20] transition-colors font-semibold"
-              >
-                ← Back
-              </button>
-              <span className="pb-2 border-b-2 border-[#1B5E20] text-[#1B5E20]">Marketplace</span>
-              {user && (
-                <>
-                  <Link to="/buyer-orders" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
-                    My Orders
-                  </Link>
-                  <Link to="/dashboard" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
-                    Dashboard
-                  </Link>
-                </>
-              )}
-            </nav>
-            <div className="flex items-center gap-2 sm:gap-4 ml-auto">
-              {user ? (
-                <>
-                  <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">
-                    {user?.name}
-                  </span>
-                  <button
-                    onClick={async () => {
-                      await supabase.auth.signOut()
-                      window.location.href = '/'
-                    }}
-                    className="text-xs sm:text-sm font-semibold text-[#1B5E20] hover:text-[#0d3a14] transition-colors border-2 border-[#1B5E20] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg whitespace-nowrap"
-                  >
-                    Log Out
-                  </button>
-                </>
-              ) : (
-                <Link to="/auth" className="text-xs sm:text-sm font-semibold text-[#1B5E20] hover:text-[#0d3a14] transition-colors border-2 border-[#1B5E20] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg whitespace-nowrap">
-                  Login
-                </Link>
-              )}
-            </div>
-          </div>
+          )}
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12">
-        {/* Hero */}
-        <div className="mb-10 sm:mb-12">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-3 sm:mb-4">
-            The Seasonal <span className="text-[#2E7D32]">Harvest</span>
-          </h1>
-          <p className="text-base sm:text-lg text-gray-600 max-w-md">
-            Sourced directly from the Techiman Hub and surrounding Bono East farmlands.
-          </p>
-        </div>
-
-        {/* Search & Filters */}
-        <div className="mb-8">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search harvests..."
-            className="w-full md:w-96 border-2 border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#1B5E20] focus:ring-2 focus:ring-[#1B5E20]/20 transition-all"
-          />
-        </div>
-
-        {/* Categories */}
-        <div className="flex flex-wrap gap-2 mb-10 sm:mb-12">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold border-2 transition-all ${
-                activeCategory === cat
-                  ? 'bg-[#1B5E20] text-white border-[#1B5E20]'
-                  : 'border-gray-300 text-gray-700 hover:border-[#1B5E20]'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Loading & Error */}
-        {loading && <p className="text-center text-gray-600 py-12">Loading harvests...</p>}
-        {error && <p className="text-center text-red-600 py-12">Error: {error}</p>}
-
-        {/* Recommended */}
-        {!loading && !error && recommended.length > 0 && (
-          <div className="mb-12 sm:mb-16">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="w-2 h-2 rounded-full bg-[#1B5E20] animate-pulse" />
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Recommended For You</h2>
-              <span className="text-xs text-gray-500">— matched by freshness & price</span>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {recommended.map((item) => (
-                <ProductCard key={item.id} item={item} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* All Produce */}
-        {!loading && !error && (
+      <main className="max-w-7xl mx-auto px-6 md:px-10 py-10">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">All Produce</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {filtered.map((item) => (
-                <ProductCard key={item.id} item={item} />
-              ))}
-            </div>
+            <h1 className="font-[var(--font-heading)] text-3xl md:text-4xl">Marketplace</h1>
+            <p className="mt-1 text-gray-600 text-sm">
+              Browse fresh produce from verified farmers across Ghana.
+            </p>
           </div>
-        )}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="md:hidden relative px-4 py-2 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-[var(--color-secondary)] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
 
-        {!loading && !error && filtered.length === 0 && (
-          <p className="text-center text-gray-600 py-12">No produce matches your search.</p>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Filters Sidebar */}
+          <motion.aside
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={`${
+              showFilters ? 'block' : 'hidden'
+            } md:block md:col-span-1 space-y-6`}
+          >
+            <div className="md:hidden flex justify-between items-center mb-4">
+              <h2 className="font-[var(--font-heading)] text-lg">Filters</h2>
+              <button
+                onClick={() => setShowFilters(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Filter Card */}
+            <div className="border border-gray-200 rounded-lg p-5 space-y-5">
+              {/* Crop Type Filter */}
+              <div>
+                <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                  Crop Type
+                </label>
+                <select
+                  value={selectedCrop}
+                  onChange={(e) => setSelectedCrop(e.target.value)}
+                  className="mt-2 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 transition-all"
+                >
+                  <option value="">All Crops</option>
+                  {CROP_TYPES.map((crop) => (
+                    <option key={crop} value={crop}>
+                      {crop}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Location Filter */}
+              <div>
+                <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                  Location
+                </label>
+                <select
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className="mt-2 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 transition-all"
+                >
+                  <option value="">All Locations</option>
+                  {REGIONS.map((region) => (
+                    <option key={region} value={region}>
+                      {region}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Price Range Filter */}
+              <div>
+                <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                  Price per KG: GH₵{priceRange[0]} - GH₵{priceRange[1]}
+                </label>
+                <div className="mt-3 space-y-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="5000"
+                    step="100"
+                    value={priceRange[0]}
+                    onChange={(e) =>
+                      setPriceRange([Number(e.target.value), priceRange[1]])
+                    }
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max="5000"
+                    step="100"
+                    value={priceRange[1]}
+                    onChange={(e) =>
+                      setPriceRange([priceRange[0], Number(e.target.value)])
+                    }
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
+                  />
+                </div>
+              </div>
+
+              {/* Reset Button */}
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={resetFilters}
+                  className="w-full py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+          </motion.aside>
+
+          {/* Listings Grid */}
+          <div className="md:col-span-3">
+            {loading && <p className="text-center text-gray-500 py-12">Loading listings...</p>}
+            {error && <p className="text-center text-red-500 py-12">Error: {error}</p>}
+
+            {!loading && !error && listings.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500 mb-4">No listings match your filters.</p>
+                <button
+                  onClick={resetFilters}
+                  className="text-[var(--color-primary)] font-medium hover:underline"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
+
+            {!loading && !error && listings.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {listings.map((listing) => (
+                  <motion.div
+                    key={listing.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow group"
+                  >
+                    {/* Image */}
+                    <div className="relative h-40 bg-gray-100 overflow-hidden">
+                      <img
+                        src={listing.image_url}
+                        alt={listing.crop_type}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4">
+                      <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)]">
+                        {listing.crop_type}
+                      </h3>
+
+                      <p className="text-sm text-gray-600 mt-1">
+                        {listing.quantity}kg · GH₵{listing.price_per_unit}/kg
+                      </p>
+
+                      <p className="text-xs text-gray-500 mt-2">
+                        {listing.location}
+                      </p>
+
+                      {/* Farmer Info */}
+                      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-medium text-gray-700">
+                            {listing.users?.name}
+                          </p>
+                          {listing.users?.rating && (
+                            <p className="text-xs text-yellow-600">
+                              ⭐ {listing.users.rating.toFixed(1)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Order Button */}
+                      <Link
+                        to={`/product/${listing.id}`}
+                        className="block mt-4 w-full bg-[var(--color-secondary)] text-white px-4 py-2 rounded-md text-sm font-medium text-center hover:brightness-95 transition-all active:scale-[0.98]"
+                      >
+                        View & Order
+                      </Link>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-gray-600 mt-12 sm:mt-16">
-        <p className="font-bold text-gray-900 mb-2">AgriMatch</p>
-        <p>© 2026 AgriMatch. Techiman Regional Hub, Bono East.</p>
+      <footer className="border-t border-gray-200 px-6 md:px-10 py-12 text-center mt-16">
+        <div className="max-w-2xl mx-auto">
+          <p className="font-[var(--font-heading)] text-[var(--color-charcoal)] text-lg">AgriMatch</p>
+          <div className="my-4 h-px bg-gray-200" />
+          <p className="text-gray-600 text-sm leading-relaxed mb-4">
+            Empowering the backbone of Ghana's economy through technology that respects the soil.
+          </p>
+          <p className="text-gray-500 text-xs tracking-wide">
+            © 2026 AgriMatch · Techiman Regional Hub, Bono East
+          </p>
+        </div>
       </footer>
     </div>
   )

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
+import ReviewModal from '../components/ReviewModal'
 
 function BuyerOrderHistory() {
   const navigate = useNavigate()
@@ -10,6 +11,8 @@ function BuyerOrderHistory() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState(null)
 
   useEffect(() => {
     async function fetchMyOrders() {
@@ -137,22 +140,59 @@ function BuyerOrderHistory() {
                   </div>
 
                   <div className="text-right flex-shrink-0">
-                    <div className="flex items-center gap-2 justify-end mb-3">
-                      <span className="w-2 h-2 rounded-full bg-[#1B5E20] animate-pulse" />
-                      <span className="text-sm font-bold text-gray-900 capitalize">{order.status}</span>
+                    <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+                      <span className="text-sm font-medium capitalize">{order.status}</span>
                     </div>
-                    <Link
-                      to={`/tracking/${order.id}`}
-                      className="text-xs text-[#1B5E20] font-semibold hover:underline"
-                    >
-                      View details →
-                    </Link>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/tracking/${order.id}`}
+                        className="text-xs text-[var(--color-primary)] underline hover:no-underline"
+                      >
+                        View details
+                      </Link>
+                      {order.status === 'delivered' && (
+                        <button
+                          onClick={() => {
+                            setSelectedOrder(order)
+                            setShowReviewModal(true)
+                          }}
+                          className="text-xs text-[var(--color-secondary)] underline hover:no-underline"
+                        >
+                          Leave review
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   </div>
                 </div>
               </motion.div>
             ))}
           </div>
         )}
+        {showReviewModal && selectedOrder && (
+        <ReviewModal
+          order={selectedOrder}
+          buyer={user}
+          farmerName={selectedOrder.listings?.users?.name}
+          onClose={() => {
+            setShowReviewModal(false)
+            setSelectedOrder(null)
+          }}
+          onSuccess={async () => {
+            setShowReviewModal(false)
+            setSelectedOrder(null)
+            // Refresh orders to remove review button
+            const { data: newOrders } = await supabase
+              .from('orders')
+              .select('*, listings(crop_type, location, quantity, image_url, users(name))')
+              .eq('buyer_id', user.id)
+              .order('created_at', { ascending: false })
+            setOrders(newOrders || [])
+          }}
+        />
+      )}
       </main>
 
       {/* Footer */}
