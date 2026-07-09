@@ -1,6 +1,7 @@
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useFlutterwave } from 'flutterwave-react-v3'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 
@@ -11,9 +12,9 @@ function ProductDetail() {
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-
   const [quantity, setQuantity] = useState(50)
-  const [confirmed, setConfirmed] = useState(false)
+  const [paymentProcessing, setPaymentProcessing] = useState(false)
+  const [orderId, setOrderId] = useState(null)
 
   useEffect(() => {
     async function fetchProduct() {
@@ -49,19 +50,86 @@ function ProductDetail() {
   const logisticsFee = 45
   const total = subtotal + logisticsFee
 
-  const handleOrder = async () => {
-    const { error } = await supabase.from('orders').insert({
-      listing_id: product.id,
-      buyer_id: user.id,
-      quantity: quantity,
-      total_price: total,
-      status: 'pending',
-    })
+  const flutterConfig = {
+    public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
+    tx_ref: `AGRIMATCH-${Date.now()}`,
+    amount: total,
+    currency: 'GHS',
+    payment_options: 'card,mobilemoney,ussd',
+    customer: {
+      email: user?.email || 'buyer@agrimatch.com',
+      phonenumber: user?.phone || '0550000000',
+      name: user?.name || 'AgriMatch Buyer',
+    },
+    customizations: {
+      title: `AgriMatch - ${product.crop_type}`,
+      description: `${quantity}kg of ${product.crop_type} from ${product.users?.name}`,
+    },
+  }
 
-    if (error) {
-      setError(error.message)
-    } else {
-      setConfirmed(true)
+  const handleFlutterPayment = useFlutterwave(flutterConfig)
+
+  const handlePaymentClick = async () => {
+    try {
+      setPaymentProcessing(true)
+
+      // Create order in database
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          listing_id: product.id,
+          buyer_id: user.id,
+          quantity: quantity,
+          total_price: total,
+          status: 'pending',
+          payment_status: 'processing',
+        })
+        .select()
+        .single()
+
+      if (orderError) {
+        setError(orderError.message)
+        setPaymentProcessing(false)
+        return
+      }
+
+      setOrderId(orderData.id)
+
+      // Trigger Flutterwave payment
+      handleFlutterPayment({
+        onSuccess: async (response) => {
+          console.log('Payment successful:', response)
+
+          // Update order with payment details
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+              payment_status: 'paid',
+              transaction_id: response.transaction_id,
+              payment_date: new Date().toISOString(),
+              status: 'confirmed',
+            })
+            .eq('id', orderData.id)
+
+          if (updateError) {
+            setError(updateError.message)
+            setPaymentProcessing(false)
+            return
+          }
+
+          // Redirect to tracking
+          setTimeout(() => {
+            navigate(`/tracking/${orderData.id}`)
+          }, 1500)
+        },
+        onClose: () => {
+          console.log('Payment modal closed')
+          setPaymentProcessing(false)
+        },
+      })
+    } catch (err) {
+      setError(err.message)
+      setPaymentProcessing(false)
     }
   }
 
@@ -86,9 +154,6 @@ function ProductDetail() {
               </Link>
               <Link to="/dashboard" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
                 Dashboard
-              </Link>
-              <Link to="/logistics" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
-                Logistics
               </Link>
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
@@ -209,29 +274,33 @@ function ProductDetail() {
               <div className="bg-[#E8F5E9] border-2 border-[#1B5E20]/20 rounded-lg p-4 mb-6">
                 <p className="text-sm font-bold text-[#1B5E20] mb-2">Escrow Guaranteed</p>
                 <p className="text-xs text-gray-700 leading-relaxed">
-                  Your payment is held in a secure mobile money escrow. Funds are only released to the farmer once you confirm the quality of produce upon delivery.
+                  Your payment is held securely. Funds are released to the farmer once you confirm the quality of produce upon delivery.
                 </p>
               </div>
 
-              {/* Order Button */}
-              {!confirmed ? (
-                <button
-                  onClick={handleOrder}
-                  className="w-full bg-[#1B5E20] text-white py-3 px-6 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all text-base"
-                >
-                  Order & Pay Now
-                </button>
-              ) : (
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 mb-6">
+                  <p className="text-sm text-red-700 font-medium">{error}</p>
+                </div>
+              )}
+
+              {/* Payment Button */}
+              {paymentProcessing ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="bg-[#1B5E20] text-white py-4 px-6 rounded-lg text-center"
                 >
-                  <p className="font-bold mb-2">✓ Payment held in escrow</p>
-                  <Link to="/buyer-orders" className="text-xs underline hover:no-underline">
-                    View your orders →
-                  </Link>
+                  <p className="font-bold">Processing payment...</p>
                 </motion.div>
+              ) : (
+                <button
+                  onClick={handlePaymentClick}
+                  className="w-full bg-[#1B5E20] text-white py-3 px-6 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all text-base"
+                >
+                  Pay GH₵{total.toFixed(2)}
+                </button>
               )}
             </div>
           </div>

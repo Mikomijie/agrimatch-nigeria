@@ -41,9 +41,8 @@ function OrderTracking() {
     fetchOrder()
   }, [orderId])
 
-  if (loading) return <p className="p-10 text-center text-gray-500">Loading order...</p>
+ if (loading) return <p className="p-10 text-center text-gray-500">Loading order...</p>
   if (error) return <p className="p-10 text-center text-red-500">Error: {error}</p>
-  if (!user)
   if (!order) return (
     <div className="p-10 text-center">
       <p className="text-gray-500">Order not found.</p>
