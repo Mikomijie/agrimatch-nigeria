@@ -113,10 +113,13 @@ function ProductDetail() {
             .eq('id', orderData.id)
 
           if (updateError) {
+            notify.error('Payment recorded but order update failed')
             setError(updateError.message)
             setPaymentProcessing(false)
             return
           }
+
+          notify.success('Payment successful! Order confirmed.')
 
           // Redirect to tracking
           setTimeout(() => {

@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
+import { notify } from '../lib/notifications'
 
 const ROLES = [
   { id: 'farmer', label: 'Farmer' },
@@ -133,9 +134,11 @@ function Auth() {
     })
 
     if (profileError) {
+      notify.error('Failed to create account')
       setError(getFriendlyError(profileError.message))
       setSubmitting(false)
     } else {
+      notify.success('Account created! Welcome to AgriMatch')
       setSuccess('Account created! Redirecting...')
       setTimeout(() => {
         navigate('/role-switch')
@@ -152,6 +155,7 @@ function Auth() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
+      notify.error('Login failed')
       setError(getFriendlyError(error.message))
       setSubmitting(false)
     } else {
@@ -162,6 +166,7 @@ function Auth() {
         .eq('auth_id', data.user.id)
         .single()
 
+      notify.success('Logged in successfully!')
       setSuccess('Logged in successfully! Redirecting...')
       setTimeout(() => {
         navigate('/role-switch')

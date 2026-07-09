@@ -1,3 +1,4 @@
+import { notify } from '../lib/notifications'
 import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -119,20 +120,22 @@ function TransporterLoadBoard() {
       fetchOrders()
     }
   }, [view, user])
-
-  const handleAccept = async (orderId) => {
+const handleAccept = async (orderId) => {
     const { error } = await supabase
       .from('orders')
       .update({ transporter_id: user.id, status: 'confirmed' })
       .eq('id', orderId)
 
     if (error) {
+      notify.error('Failed to accept load')
       setError(error.message)
     } else {
+      notify.success('Load accepted! Check "My Jobs"')
       setView('myJobs')
       fetchOrders()
     }
   }
+  
 
   const handleUpdateStatus = async (orderId, newStatus) => {
     const { error } = await supabase
@@ -141,8 +144,11 @@ function TransporterLoadBoard() {
       .eq('id', orderId)
 
     if (error) {
+      notify.error('Failed to update status')
       setError(error.message)
     } else {
+      const statusText = newStatus === 'in_transit' ? 'In Transit' : 'Delivered'
+      notify.success(`Order marked as ${statusText}`)
       fetchOrders()
     }
   }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
+import { notify } from '../lib/notifications'
 
 function ReviewModal({ order, buyer, farmerName, onClose, onSuccess }) {
   const [rating, setRating] = useState(0)
@@ -45,8 +46,10 @@ function ReviewModal({ order, buyer, farmerName, onClose, onSuccess }) {
     setSubmitting(false)
 
     if (reviewError) {
+      notify.error('Failed to submit review')
       setError(reviewError.message)
     } else {
+      notify.success('Review submitted! Thank you!')
       onSuccess()
     }
   }
