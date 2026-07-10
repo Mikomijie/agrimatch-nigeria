@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import ChatWindow from '../components/ChatWindow'
 import ConversationList from '../components/ConversationList'
+import FarmerOrders from '../components/FarmerOrders'
 
 const CROPS = [
   { id: 'Tomatoes', label: 'Tomatoes', image: '/images/produce/tomatoes.jpg' },
@@ -40,7 +41,11 @@ function FarmerDashboard() {
   const [editingListing, setEditingListing] = useState(null)
   const [editQuantity, setEditQuantity] = useState('')
   const [editPrice, setEditPrice] = useState('')
-  const [deletingId, setDeletingId] = useState(null)
+ const [deletingId, setDeletingId] = useState(null)
+const [showOrderNotification, setShowOrderNotification] = useState(false)
+const [newOrderMessage, setNewOrderMessage] = useState('')
+const [unreadMessages, setUnreadMessages] = useState(0)
+const [pendingOrders, setPendingOrders] = useState(0)
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
@@ -165,7 +170,68 @@ const startEdit = (listing) => {
       setListingCount(data?.length || 0)
     }
     fetchMyListings()
+
+    // Listen for new orders on this farmer's listings
+    const ordersChannel = supabase
+      .channel('farmer-new-orders')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          setNewOrderMessage('🎉 New order received!')
+          setShowOrderNotification(true)
+          setTimeout(() => setShowOrderNotification(false), 4000)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(ordersChannel)
+    }
   }, [user, success])
+
+  useEffect(() => {
+    if (!user) return
+
+    async function fetchBadges() {
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('receiver_id', user.id)
+        .eq('read', false)
+      setUnreadMessages(msgs?.length || 0)
+
+      const { data: listings } = await supabase
+        .from('listings')
+        .select('id')
+        .eq('farmer_id', user.id)
+
+      if (listings?.length) {
+        const listingIds = listings.map((l) => l.id)
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('id')
+          .in('listing_id', listingIds)
+          .eq('status', 'pending')
+        setPendingOrders(orders?.length || 0)
+      }
+    }
+    fetchBadges()
+
+    const channel = supabase
+      .channel('farmer-badges')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => fetchBadges()
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        () => fetchBadges()
+      )
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [user])
 
   if (userLoading) return (
     <div className="p-10 text-center text-gray-500">
@@ -210,9 +276,17 @@ const startEdit = (listing) => {
               <span className="pb-2 border-b-2 border-[#1B5E20] text-[#1B5E20]">
                 Dashboard
               </span>
-              <Link to="/logistics" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
+             <Link to="/logistics" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
                 Logistics
               </Link>
+              <span className="relative text-gray-600 text-sm font-medium">
+                Orders
+                {pendingOrders > 0 && (
+                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {pendingOrders}
+                  </span>
+                )}
+              </span>
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
               <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">
@@ -451,6 +525,9 @@ const startEdit = (listing) => {
               </div>
             </div>
 
+            {/* Orders Received Card */}
+            <FarmerOrders user={user} />
+
             {/* Active Listings Card */}
             <div className="bg-white rounded-lg sm:rounded-xl border-2 border-gray-200 p-4 sm:p-6 shadow-sm">
               <h2 className="font-bold text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">My Active Listings</h2>
@@ -586,36 +663,47 @@ const startEdit = (listing) => {
         </div>
    </main>
 
-      {/* Chat Button - Desktop & Mobile */}
+      {/* Order Notification Toast */}
+      {showOrderNotification && (
+        <div className="fixed top-6 right-6 bg-[#1B5E20] text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-lg z-50 animate-pulse">
+          <p className="text-sm sm:text-base font-semibold">{newOrderMessage}</p>
+        </div>
+      )}
+
+      {/* Chat Bubble Button */}
       {!showChat && !selectedChat && (
         <button
           onClick={() => setShowChat(true)}
-          className="fixed right-6 bottom-6 w-14 h-14 rounded-full bg-[#2E7D32] text-white flex items-center justify-center shadow-lg hover:brightness-95 transition-all z-40 text-2xl"
+          className="fixed right-6 bottom-6 w-14 h-14 rounded-full bg-[#2E7D32] text-white flex items-center justify-center shadow-lg hover:brightness-95 transition-all z-40 text-2xl relative"
           title="Open messages"
         >
           💬
+          {unreadMessages > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+              {unreadMessages}
+            </span>
+          )}
         </button>
       )}
 
-      {/* Chat Panel - Desktop */}
-      {showChat && !selectedChat && (
-        <div className="hidden md:flex gap-4 fixed right-6 bottom-6 z-40">
-          <div className="w-96 h-96 shadow-xl">
+      {/* Desktop Chat Panel */}
+      {(showChat || selectedChat) && (
+        <div className="hidden md:block fixed right-6 bottom-6 z-50 w-96 shadow-2xl rounded-lg overflow-hidden"
+          style={{ height: '480px' }}
+        >
+          {!selectedChat ? (
             <ConversationList
               currentUser={user}
               onSelectConversation={(id, name) => {
                 setSelectedChat(id)
                 setChatName(name)
               }}
+              onClose={() => {
+                setShowChat(false)
+                setSelectedChat(null)
+              }}
             />
-          </div>
-        </div>
-      )}
-
-      {/* Direct Chat Window (when selectedChat is already set) */}
-      {selectedChat && (
-        <div className="hidden md:flex gap-4 fixed right-6 bottom-6 z-40">
-          <div className="w-96 h-96 shadow-xl">
+          ) : (
             <ChatWindow
               conversationWith={selectedChat}
               conversationName={chatName}
@@ -625,23 +713,14 @@ const startEdit = (listing) => {
                 setShowChat(false)
               }}
             />
-          </div>
+          )}
         </div>
       )}
 
-      {/* Chat Panel - Mobile Modal */}
-      {showChat && (
+      {/* Mobile Chat Modal */}
+      {(showChat || selectedChat) && (
         <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col">
-          <div className="flex-1 flex flex-col bg-white">
-            <button
-              onClick={() => {
-                setShowChat(false)
-                setSelectedChat(null)
-              }}
-              className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 text-2xl z-50"
-            >
-              ✕
-            </button>
+          <div className="flex-1 flex flex-col bg-white mt-16 rounded-t-2xl overflow-hidden">
             {!selectedChat ? (
               <ConversationList
                 currentUser={user}
@@ -649,13 +728,20 @@ const startEdit = (listing) => {
                   setSelectedChat(id)
                   setChatName(name)
                 }}
+                onClose={() => {
+                  setShowChat(false)
+                  setSelectedChat(null)
+                }}
               />
             ) : (
               <ChatWindow
                 conversationWith={selectedChat}
                 conversationName={chatName}
                 currentUser={user}
-                onClose={() => setSelectedChat(null)}
+                onClose={() => {
+                  setSelectedChat(null)
+                  setShowChat(false)
+                }}
               />
             )}
           </div>

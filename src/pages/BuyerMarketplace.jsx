@@ -25,6 +25,8 @@ function BuyerMarketplace() {
   const [showChat, setShowChat] = useState(false)
   const [selectedChat, setSelectedChat] = useState(null)
   const [chatName, setChatName] = useState('')
+const [unreadMessages, setUnreadMessages] = useState(0)
+const [newOrders, setNewOrders] = useState(0)
 
   // Fetch listings with filters
   useEffect(() => {
@@ -63,6 +65,43 @@ function BuyerMarketplace() {
     fetchListings()
   }, [selectedCrop, selectedLocation, priceRange])
 
+  useEffect(() => {
+    if (!user) return
+
+    // Count unread messages
+    async function fetchUnread() {
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('receiver_id', user.id)
+        .eq('read', false)
+      setUnreadMessages(msgs?.length || 0)
+
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('buyer_id', user.id)
+        .eq('status', 'confirmed')
+      setNewOrders(orders?.length || 0)
+    }
+    fetchUnread()
+
+    // Realtime listener
+    const channel = supabase
+      .channel('buyer-notifications')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => fetchUnread()
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        () => fetchUnread()
+      )
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [user])
+
   // Reset filters
   const resetFilters = () => {
     setSelectedCrop('')
@@ -81,6 +120,14 @@ function BuyerMarketplace() {
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
           <span className="text-gray-300">Marketplace</span>
+          <Link to="/buyer-orders" className="text-gray-300 hover:text-white relative">
+            My Orders
+            {newOrders > 0 && (
+              <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {newOrders}
+              </span>
+            )}
+          </Link>
           <Link to="/dashboard" className="text-gray-300 hover:text-white">
             Dashboard
           </Link>
@@ -130,7 +177,9 @@ function BuyerMarketplace() {
                 {activeFilterCount}
               </span>
             )}
-            <div className="flex gap-2">
+          </button>
+
+          <div className="flex gap-2">
             <button
               onClick={() => setViewMode('list')}
               className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${
@@ -152,7 +201,6 @@ function BuyerMarketplace() {
               Map
             </button>
           </div>
-          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -366,36 +414,38 @@ function BuyerMarketplace() {
         </div>
      </footer>
 
-      {/* Chat Button - Desktop & Mobile */}
+      {/* Chat Bubble Button */}
       {!showChat && !selectedChat && (
         <button
           onClick={() => setShowChat(true)}
-          className="fixed right-6 bottom-6 w-14 h-14 rounded-full bg-[#2E7D32] text-white flex items-center justify-center shadow-lg hover:brightness-95 transition-all z-40 text-2xl"
+          className="fixed right-6 bottom-6 w-14 h-14 rounded-full bg-[#2E7D32] text-white flex items-center justify-center shadow-lg hover:brightness-95 transition-all z-40 text-2xl relative"
           title="Open messages"
         >
           💬
+          {unreadMessages > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+              {unreadMessages}
+            </span>
+          )}
         </button>
       )}
 
-      {/* Chat Panel - Desktop */}
-      {showChat && !selectedChat && (
-        <div className="hidden md:flex gap-4 fixed right-6 bottom-6 z-40">
-          <div className="w-96 h-96 shadow-xl">
+      {/* Desktop Chat Panel */}
+      {(showChat || selectedChat) && (
+        <div className="hidden md:block fixed right-6 bottom-6 z-50 w-96 shadow-2xl rounded-lg overflow-hidden" style={{ height: '480px' }}>
+          {!selectedChat ? (
             <ConversationList
               currentUser={user}
               onSelectConversation={(id, name) => {
                 setSelectedChat(id)
                 setChatName(name)
               }}
+              onClose={() => {
+                setShowChat(false)
+                setSelectedChat(null)
+              }}
             />
-          </div>
-        </div>
-      )}
-
-      {/* Direct Chat Window (when selectedChat is already set) */}
-      {selectedChat && (
-        <div className="hidden md:flex gap-4 fixed right-6 bottom-6 z-40">
-          <div className="w-96 h-96 shadow-xl">
+          ) : (
             <ChatWindow
               conversationWith={selectedChat}
               conversationName={chatName}
@@ -405,23 +455,14 @@ function BuyerMarketplace() {
                 setShowChat(false)
               }}
             />
-          </div>
+          )}
         </div>
       )}
 
-      {/* Chat Panel - Mobile Modal */}
-      {showChat && (
+      {/* Mobile Chat Modal */}
+      {(showChat || selectedChat) && (
         <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col">
-          <div className="flex-1 flex flex-col bg-white">
-            <button
-              onClick={() => {
-                setShowChat(false)
-                setSelectedChat(null)
-              }}
-              className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 text-2xl z-50"
-            >
-              ✕
-            </button>
+          <div className="flex-1 flex flex-col bg-white mt-16 rounded-t-2xl overflow-hidden">
             {!selectedChat ? (
               <ConversationList
                 currentUser={user}
@@ -429,13 +470,20 @@ function BuyerMarketplace() {
                   setSelectedChat(id)
                   setChatName(name)
                 }}
+                onClose={() => {
+                  setShowChat(false)
+                  setSelectedChat(null)
+                }}
               />
             ) : (
               <ChatWindow
                 conversationWith={selectedChat}
                 conversationName={chatName}
                 currentUser={user}
-                onClose={() => setSelectedChat(null)}
+                onClose={() => {
+                  setSelectedChat(null)
+                  setShowChat(false)
+                }}
               />
             )}
           </div>

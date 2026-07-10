@@ -2,12 +2,12 @@ import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
-
-const TEMP_FARMER_ID = '33333333-3333-3333-3333-333333333333'
+import { useCurrentUser } from '../lib/useCurrentUser'
 
 const CROPS = ['Tomatoes', 'Peppers', 'Garden Eggs', 'Okra']
 
 function USSDSimulator() {
+  const { user } = useCurrentUser()
   const [step, setStep] = useState('menu')
   const [typed, setTyped] = useState('')
   const [crop, setCrop] = useState('')
@@ -68,9 +68,15 @@ function USSDSimulator() {
     }
   }
 
-  const submitListing = async (finalLocation) => {
+ const submitListing = async (finalLocation) => {
+    if (!user?.id) {
+      setErrorMsg('You must be logged in as a farmer to list produce.')
+      setStep('error')
+      return
+    }
+
     const { error } = await supabase.from('listings').insert({
-      farmer_id: TEMP_FARMER_ID,
+      farmer_id: user.id,
       crop_type: crop,
       quantity: Number(quantity),
       price_per_unit: Number(price),
@@ -218,9 +224,20 @@ function USSDSimulator() {
     </motion.button>
   )
 
-  return (
+return (
     <div className="min-h-screen bg-white">
-      <header className="flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-background-warm)] border-b border-gray-200">
+      {!user && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-8 text-center max-w-sm mx-4">
+            <p className="text-lg font-bold text-gray-900 mb-2">Login Required</p>
+            <p className="text-sm text-gray-600 mb-4">You need to be logged in as a farmer to use the USSD simulator.</p>
+            <a href="/auth" className="bg-[#1B5E20] text-white px-6 py-2 rounded-lg font-semibold">
+              Go to Login
+            </a>
+          </div>
+        </div>
+      )}
+      <header   className="flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-background-warm)] border-b border-gray-200">
         <Link to="/" className="font-[var(--font-heading)] italic text-2xl text-[var(--color-primary)]">
           AgriMatch
         </Link>

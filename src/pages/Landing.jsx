@@ -241,6 +241,29 @@ function Landing() {
         </div>
       </AnimatedSection>
 
+      {/* USSD Simulator CTA */}
+      <AnimatedSection className="bg-[#1B5E20] text-white px-6 md:px-10 py-16 text-center">
+        <motion.div variants={fadeUp} transition={{ duration: 0.6 }}>
+          <p className="text-xs font-semibold tracking-wide text-green-300 uppercase mb-3">
+            Low-Connectivity Mode
+          </p>
+          <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-white">
+            No smartphone? No problem.
+          </h2>
+          <p className="mt-4 text-green-100 max-w-xl mx-auto text-sm leading-relaxed">
+            Farmers without internet access can list produce and check orders via USSD — just like dialing *920#. Try the live simulator below.
+          </p>
+          <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-8">
+            <Link
+              to="/ussd"
+              className="inline-block bg-white text-[#1B5E20] px-8 py-3 rounded-md font-bold tracking-wide hover:brightness-95 transition-all"
+            >
+              TRY USSD SIMULATOR →
+            </Link>
+          </motion.div>
+        </motion.div>
+      </AnimatedSection>
+
       {/* Footer CTA */}
       <AnimatedSection className="text-center py-16 px-6">
         <motion.h2

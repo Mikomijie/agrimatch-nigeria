@@ -39,6 +39,15 @@ function ChatWindow({ conversationWith, conversationName, currentUser, orderId, 
       setMessages(data || [])
       setLoading(false)
       setTimeout(scrollToBottom, 100)
+
+      // Mark messages as read
+      await supabase
+        .from('messages')
+        .update({ read: true })
+        .eq('receiver_id', currentUser.id)
+        .eq('sender_id', conversationWith)
+        .eq('read', false)
+
     } catch (err) {
       console.error('Fetch exception:', err)
       setLoading(false)
