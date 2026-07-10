@@ -127,9 +127,12 @@ function ProductDetail() {
           }, 1500)
         },
         onClose: () => {
-          console.log('Payment modal closed')
-          setPaymentProcessing(false)
-        },
+  console.log('Payment modal closed')
+  setPaymentProcessing(false)
+  if (orderId) {
+    navigate(`/tracking/${orderId}`)
+  }
+},
       })
     } catch (err) {
       setError(err.message)
