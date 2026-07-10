@@ -273,20 +273,31 @@ const startEdit = (listing) => {
               <Link to="/marketplace" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
                 Marketplace
               </Link>
-              <span className="pb-2 border-b-2 border-[#1B5E20] text-[#1B5E20]">
-                Dashboard
-              </span>
+              <button
+  onClick={() => setShowChat(true)}
+  className="relative text-gray-600 hover:text-[#1B5E20] transition-colors text-sm font-medium"
+>
+  Messages
+  {unreadMessages > 0 && (
+    <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+      {unreadMessages}
+    </span>
+  )}
+</button>
              <Link to="/logistics" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
                 Logistics
               </Link>
-              <span className="relative text-gray-600 text-sm font-medium">
-                Orders
-                {pendingOrders > 0 && (
-                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                    {pendingOrders}
-                  </span>
-                )}
-              </span>
+              <button
+  onClick={() => navigate('/orders')}
+  className="relative text-gray-600 hover:text-[#1B5E20] transition-colors text-sm font-medium"
+>
+  Orders
+  {pendingOrders > 0 && (
+    <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+      {pendingOrders}
+    </span>
+  )}
+</button>
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
               <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">
