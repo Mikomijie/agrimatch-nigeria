@@ -18,10 +18,20 @@ function FarmerOrders() {
 
   const fetchOrders = async () => {
     if (!user) return
+    const { data: listings } = await supabase
+      .from('listings')
+      .select('id')
+      .eq('farmer_id', user.id)
+    if (!listings?.length) {
+      setOrders([])
+      setLoading(false)
+      return
+    }
+    const listingIds = listings.map(l => l.id)
     const { data } = await supabase
       .from('orders')
       .select('*, listings(crop_type, quantity, price_per_unit)')
-      .eq('listing_id', (await supabase.from('listings').select('id').eq('farmer_id', user.id)).data?.[0]?.id || '')
+      .in('listing_id', listingIds)
       .order('created_at', { ascending: false })
     setOrders(data || [])
     setLoading(false)
