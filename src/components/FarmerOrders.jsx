@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import RequestTransportModal from './RequestTransportModal'
 
 const STATUS_FLOW = ['pending', 'confirmed', 'in_transit', 'delivered']
 
@@ -20,6 +21,8 @@ function FarmerOrders({ user }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState(null)
+  const [transportModal, setTransportModal] = useState(null)
+  const [requestedOrders, setRequestedOrders] = useState([])
 
   useEffect(() => {
     if (!user) return
@@ -52,9 +55,19 @@ function FarmerOrders({ user }) {
     if (!error) {
       setOrders(data || [])
     }
+
+    // Check which orders already have transport requests
+    const { data: requests } = await supabase
+      .from('transport_requests')
+      .select('order_id')
+      .eq('farmer_id', user.id)
+
+    if (requests) {
+      setRequestedOrders(requests.map((r) => r.order_id))
+    }
+
     setLoading(false)
   }
-
   async function advanceStatus(order) {
     const currentIndex = STATUS_FLOW.indexOf(order.status)
     const nextStatus = STATUS_FLOW[currentIndex + 1]
@@ -149,12 +162,33 @@ function FarmerOrders({ user }) {
                     {updatingId === order.id ? 'Updating...' : nextLabel}
                   </button>
                 )}
+
+                {order.status === 'confirmed' && (
+                  <button
+                    onClick={() => setTransportModal(order)}
+                    disabled={requestedOrders.includes(order.id)}
+                    className="mt-2 w-full border-2 border-[#1B5E20] text-[#1B5E20] text-xs font-semibold py-2 rounded hover:bg-[#E8F5E9] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {requestedOrders.includes(order.id) ? '✓ Transport Requested' : '🚚 Request Transport'}
+                  </button>
+                )}
               </div>
             )
           })}
         </div>
       )}
     </div>
+
+    {transportModal && (
+      <RequestTransportModal
+        order={transportModal}
+        user={user}
+        onClose={() => setTransportModal(null)}
+        onSuccess={() => {
+          setRequestedOrders((prev) => [...prev, transportModal.id])
+        }}
+      />
+    )}
   )
 }
 

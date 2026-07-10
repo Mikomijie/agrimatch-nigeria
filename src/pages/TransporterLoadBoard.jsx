@@ -88,7 +88,8 @@ function LoadCard({ order, onAccept, onUpdateStatus, isMyJob }) {
 function TransporterLoadBoard() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
-  const [view, setView] = useState('available') // 'available' or 'myJobs'
+  const [transportRequests, setTransportRequests] = useState([])
+  const [view, setView] = useState('available')
   const { user, loading: userLoading } = useCurrentUser()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -112,6 +113,18 @@ function TransporterLoadBoard() {
     } else {
       setOrders(data)
     }
+
+    // Fetch transport requests
+    const { data: requests } = await supabase
+      .from('transport_requests')
+      .select('*, orders(id, quantity, total_price, status, listings(crop_type, location, image_url)), users!transport_requests_farmer_id_fkey(name, phone)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+
+    if (requests) {
+      setTransportRequests(requests)
+    }
+
     setLoading(false)
   }
 
@@ -223,7 +236,7 @@ const handleAccept = async (orderId) => {
           </div>
 
           {/* View Switcher */}
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-shrink-0 flex-wrap">
             <button
               onClick={() => setView('available')}
               className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm font-bold border-2 transition-all ${
@@ -233,6 +246,21 @@ const handleAccept = async (orderId) => {
               }`}
             >
               Available
+            </button>
+            <button
+              onClick={() => setView('requests')}
+              className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm font-bold border-2 transition-all relative ${
+                view === 'requests'
+                  ? 'bg-[#1B5E20] text-white border-[#1B5E20]'
+                  : 'border-gray-300 text-gray-700 hover:border-[#1B5E20]'
+              }`}
+            >
+              Requests
+              {transportRequests.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {transportRequests.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setView('myJobs')}
@@ -258,7 +286,7 @@ const handleAccept = async (orderId) => {
           </p>
         )}
 
-        {!loading && !error && orders.length > 0 && (
+        {!loading && !error && view !== 'requests' && orders.length > 0 && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {orders.map((order) => (
               <LoadCard
@@ -269,6 +297,81 @@ const handleAccept = async (orderId) => {
                 isMyJob={view === 'myJobs'}
               />
             ))}
+          </div>
+        )}
+
+        {!loading && view === 'requests' && (
+          <div>
+            {transportRequests.length === 0 ? (
+              <p className="text-center text-gray-600 py-12">No transport requests yet.</p>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {transportRequests.map((req) => (
+                  <motion.div
+                    key={req.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+                      <img
+                        src={req.orders?.listings?.image_url}
+                        alt={req.orders?.listings?.crop_type}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-3 left-3 bg-yellow-400 text-yellow-900 px-3 py-1.5 rounded-lg text-xs font-bold">
+                        Transport Needed
+                      </div>
+                    </div>
+                    <div className="p-4 sm:p-5">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h3 className="font-bold text-lg text-gray-900">
+                          {req.orders?.listings?.crop_type}
+                        </h3>
+                        <p className="font-bold text-[#1B5E20] whitespace-nowrap">
+                          GH₵{Number(req.orders?.total_price).toLocaleString()}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-1">
+                        📍 {req.pickup_location} · {req.orders?.quantity}kg
+                      </p>
+                      <p className="text-xs text-gray-600 mb-1">
+                        📅 Pickup: {req.pickup_date}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-3">
+                        👨‍🌾 Farmer: {req.users?.name}
+                      </p>
+                      {req.notes && (
+                        <p className="text-xs text-gray-500 italic mb-3">
+                          "{req.notes}"
+                        </p>
+                      )}
+                      <button
+                        onClick={async () => {
+                          const { error } = await supabase
+                            .from('transport_requests')
+                            .update({ status: 'accepted', transporter_id: user.id })
+                            .eq('id', req.id)
+                          if (!error) {
+                            await supabase
+                              .from('orders')
+                              .update({ transporter_id: user.id, status: 'in_transit' })
+                              .eq('id', req.orders?.id)
+                            notify.success('Transport request accepted!')
+                            fetchOrders()
+                          } else {
+                            notify.error('Failed to accept request')
+                          }
+                        }}
+                        className="w-full bg-[#1B5E20] text-white py-2.5 rounded-lg text-sm font-bold hover:brightness-95 transition-all"
+                      >
+                        Accept Transport Request
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
