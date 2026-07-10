@@ -87,8 +87,8 @@ function OrderTracking() {
                 Tracking your <span className="text-[#2E7D32]">harvest.</span>
               </h1>
               <p className="text-base sm:text-lg text-gray-600 max-w-lg">
-                Your order of {order.quantity}kg {order.listings?.crop_type} from {order.listings?.users?.name} is currently being processed.
-              </p>
+  Your order of {order.quantity}kg {order.listings?.crop_type} from {order.listings?.users?.name} is currently {order.status === 'delivered' ? 'delivered.' : 'being processed.'}
+</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#1B5E20] animate-pulse" />
@@ -153,7 +153,18 @@ function OrderTracking() {
               </div>
 
               <div className="border-t border-gray-200 pt-6">
-                <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-3">Produce</p>
+  {order.status === 'delivered' && (
+    <button
+      onClick={async () => {
+        await supabase.from('orders').update({ status: 'completed' }).eq('id', order.id)
+        navigate('/buyer-orders')
+      }}
+      className="w-full mb-4 bg-[#1B5E20] text-white py-3 rounded-lg font-bold hover:brightness-95 transition-all"
+    >
+      ✓ Confirm Delivery Received
+    </button>
+  )}
+  <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-3">Produce</p>
                 <div className="flex items-center gap-3">
                   <img
                     src={order.listings?.image_url}
