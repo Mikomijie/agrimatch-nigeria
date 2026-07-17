@@ -4,12 +4,12 @@ import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 
 const REGIONS = [
-  'Bono East',
-  'Ashanti',
-  'Northern',
-  'Eastern',
-  'Volta',
-  'Greater Accra',
+  'Plateau',
+  'Kano',
+  'Kaduna',
+  'Benue',
+  'Niger',
+  'FCT Abuja',
 ]
 
 function FarmerRegistration() {
@@ -28,7 +28,7 @@ function FarmerRegistration() {
     const { error } = await supabase.from('users').insert({
       role: 'farmer',
       name,
-      phone: `+233${phone}`,
+      phone: `+234${phone}`,
       region,
     })
 
@@ -60,7 +60,7 @@ function FarmerRegistration() {
             "Digital tools are the new seeds. We plant them today to harvest efficiency
             tomorrow."
           </p>
-          <p className="text-sm mt-3 text-white/80">— Kofi A., Bono East Region</p>
+          <p className="text-sm mt-3 text-white/80">— Emeka A., Plateau State</p>
         </motion.div>
         <Link
           to="/"
@@ -81,7 +81,7 @@ function FarmerRegistration() {
           Farmer Registration
         </h1>
         <p className="mt-3 text-gray-600 text-sm max-w-sm">
-          Join Ghana's premium marketplace for agricultural excellence. Connect directly with
+          Join Nigeria's premium marketplace for agricultural excellence. Connect directly with
           logistics and institutional buyers.
         </p>
 
@@ -95,7 +95,7 @@ function FarmerRegistration() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Kwame Mensah"
+              placeholder="Emeka Okonkwo"
               className="mt-2 w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
             />
           </div>
@@ -106,7 +106,7 @@ function FarmerRegistration() {
             </label>
             <div className="mt-2 flex">
               <span className="px-3 py-2 bg-gray-100 border border-r-0 border-gray-300 rounded-l-md text-sm text-gray-600">
-                +233
+                +234
               </span>
               <input
                 type="tel"

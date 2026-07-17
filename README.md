@@ -2,15 +2,13 @@
 
 Live Demo: https://agrimatch-three.vercel.app
 
-AgriMatch is a farmer-to-buyer digital marketplace platform built for the GDSS-PSInno AgriTech Innovation Challenge, organised by the Ghana Data Science Summit and sponsored by GIZ under the Private Sector and Innovation Promotion in Ghana programme.
-
-The platform connects smallholder vegetable farmers in Ghana directly to buyers and transport providers, eliminating middlemen and reducing post-harvest losses. It focuses on the Techiman Regional Hub in Bono East, one of Ghana's most important vegetable supply corridors.
+AgriMatch is a farmer-to-buyer digital marketplace platform that connects smallholder vegetable farmers in Nigeria directly to buyers and transport providers, eliminating middlemen and reducing post-harvest losses. It focuses on the Jos Regional Hub in Plateau State, one of Nigeria's most important vegetable supply corridors.
 
 ---
 
 ## The Problem
 
-Ghana loses between $1.9 billion and $3 billion annually to post-harvest losses. Smallholder farmers growing tomatoes, peppers, garden eggs, okra, and leafy greens struggle to find buyers before their produce spoils. At the same time, buyers cannot easily identify trusted suppliers, compare prices, or coordinate timely delivery. Transporters operate without a system to match loads efficiently.
+Nigeria loses billions of dollars annually to post-harvest losses. Smallholder farmers growing tomatoes, peppers, garden eggs, okra, and leafy greens struggle to find buyers before their produce spoils. At the same time, buyers cannot easily identify trusted suppliers, compare prices, or coordinate timely delivery. Transporters operate without a system to match loads efficiently.
 
 AgriMatch addresses all three sides of this problem in a single platform.
 
@@ -19,8 +17,8 @@ AgriMatch addresses all three sides of this problem in a single platform.
 ## Features
 
 ### Farmer
-- Registration and profile creation with Ghana phone number and region
-- Produce listings with photos, quantity, price in Ghana cedis, pickup location, and freshness status
+- Registration and profile creation with Nigerian phone number and state
+- Produce listings with photos, quantity, price in Naira, pickup location, and freshness status
 - Inventory management with edit and delete controls
 - Real-time order notifications
 - In-app messaging with buyers
@@ -29,7 +27,7 @@ AgriMatch addresses all three sides of this problem in a single platform.
 ### Buyer
 - Registration and profile creation
 - Marketplace with filtering by crop type, location, and price range
-- Interactive map view showing farmer locations across Bono East
+- Interactive map view showing farmer locations across Plateau State
 - Direct messaging with farmers for negotiation
 - Order placement with quantity selection and automatic logistics fee calculation
 - Mobile Money payment via Flutterwave with escrow protection
@@ -46,11 +44,11 @@ AgriMatch addresses all three sides of this problem in a single platform.
 
 ## Bonus Features
 
-**USSD Simulator** — Farmers without smartphones can list produce by dialing a USSD code. The simulator replicates this experience in the browser, accepts keypad input, submits directly to the same database as the web app, and reads each screen aloud to support non-literate users. A production version would use local-language audio in Twi and Dagbani.
+**USSD Simulator** — Farmers without smartphones can list produce by dialing a USSD code. The simulator replicates this experience in the browser, accepts keypad input, submits directly to the same database as the web app, and reads each screen aloud to support non-literate users. A production version would use local-language audio in Hausa, Yoruba, or Igbo.
 
 **Escrow Payments** — Funds paid by buyers are held securely and only released to the farmer once the buyer confirms delivery and quality.
 
-**Smart Market Insights** — The farmer dashboard displays live market trend information for the Techiman Hub to help farmers price competitively.
+**Smart Market Insights** — The farmer dashboard displays live market trend information for the Jos Hub to help farmers price competitively.
 
 **Geolocation Map** — The marketplace includes a map view powered by Leaflet and OpenStreetMap, showing the exact location of each farmer's produce.
 
@@ -70,12 +68,3 @@ AgriMatch addresses all three sides of this problem in a single platform.
 ## Demo Accounts
 
 To test the platform, register as a Farmer, Buyer, or Transporter using the signup flow. Each role has a dedicated dashboard and workflow.
-
----
-
-## Challenge
-
-GDSS-PSInno AgriTech Innovation Challenge
-Organised by Ghana Data Science Summit
-Sponsored by GIZ under the PSInno programme
-Focused region: Techiman Regional Hub, Bono East

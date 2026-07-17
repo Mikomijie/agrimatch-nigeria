@@ -48,18 +48,18 @@ function ProductDetail() {
   )
 
   const subtotal = quantity * product.price_per_unit
-  const logisticsFee = 45
+  const logisticsFee = 5000
   const total = subtotal + logisticsFee
 
   const flutterConfig = {
     public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
     tx_ref: `AGRIMATCH-${Date.now()}`,
     amount: total,
-    currency: 'GHS',
+    currency: 'NGN',
     payment_options: 'card,mobilemoney,ussd',
     customer: {
       email: user?.email || 'buyer@agrimatch.com',
-      phonenumber: user?.phone || '0550000000',
+      phonenumber: user?.phone || '08000000000',
       name: user?.name || 'AgriMatch Buyer',
     },
     customizations: {
@@ -74,7 +74,6 @@ function ProductDetail() {
     try {
       setPaymentProcessing(true)
 
-      // Create order in database
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -96,12 +95,10 @@ function ProductDetail() {
 
       setOrderId(orderData.id)
 
-      // Trigger Flutterwave payment
       handleFlutterPayment({
         onSuccess: async (response) => {
           console.log('Payment successful:', response)
 
-          // Update order with payment details
           const { error: updateError } = await supabase
             .from('orders')
             .update({
@@ -121,18 +118,17 @@ function ProductDetail() {
 
           notify.success('Payment successful! Order confirmed.')
 
-          // Redirect to tracking
           setTimeout(() => {
             navigate(`/tracking/${orderData.id}`)
           }, 1500)
         },
         onClose: () => {
-  console.log('Payment modal closed')
-  setPaymentProcessing(false)
-  if (orderId) {
-    navigate(`/tracking/${orderId}`)
-  }
-},
+          console.log('Payment modal closed')
+          setPaymentProcessing(false)
+          if (orderId) {
+            navigate(`/tracking/${orderId}`)
+          }
+        },
       })
     } catch (err) {
       setError(err.message)
@@ -151,7 +147,7 @@ function ProductDetail() {
                 onClick={() => navigate('/marketplace')}
                 className="md:hidden text-gray-600 hover:text-[#1B5E20] transition-colors"
               >
-                ← 
+                ←
               </button>
               <Link to="/" className="text-2xl sm:text-3xl font-bold text-[#1B5E20] flex-shrink-0">
                 AgriMatch
@@ -201,7 +197,7 @@ function ProductDetail() {
               {product.crop_type}
             </h1>
             <p className="text-base sm:text-lg text-gray-600 max-w-md leading-relaxed">
-              Sun-cured, freshly harvested produce from the mineral-rich soils of the Techiman valley, grown using traditional cultivation techniques.
+              Sun-cured, freshly harvested produce from the mineral-rich soils of the Jos Plateau, grown using traditional cultivation techniques.
             </p>
 
             <div className="grid grid-cols-2 gap-6 mt-8 sm:mt-10">
@@ -215,7 +211,7 @@ function ProductDetail() {
               </div>
               <div>
                 <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-2">Price per kg</p>
-                <p className="text-2xl sm:text-3xl font-bold text-gray-900">GH₵{product.price_per_unit}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">₦{Number(product.price_per_unit).toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-2">Farmer Rating</p>
@@ -273,15 +269,15 @@ function ProductDetail() {
               <div className="space-y-3 mb-8 pt-6 border-t border-gray-200">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-bold text-gray-900">GH₵{subtotal.toFixed(2)}</span>
+                  <span className="font-bold text-gray-900">₦{subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Logistics Fee (Techiman → Accra)</span>
-                  <span className="font-bold text-gray-900">GH₵{logisticsFee.toFixed(2)}</span>
+                  <span className="text-gray-600">Logistics Fee (Jos → Abuja)</span>
+                  <span className="font-bold text-gray-900">₦{logisticsFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-3 mt-3">
                   <span className="text-gray-900">Total Payable</span>
-                  <span className="text-[#1B5E20]">GH₵{total.toFixed(2)}</span>
+                  <span className="text-[#1B5E20]">₦{total.toLocaleString()}</span>
                 </div>
               </div>
 
@@ -314,7 +310,7 @@ function ProductDetail() {
                   onClick={handlePaymentClick}
                   className="w-full bg-[#1B5E20] text-white py-3 px-6 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all text-base"
                 >
-                  Pay GH₵{total.toFixed(2)}
+                  Pay ₦{total.toLocaleString()}
                 </button>
               )}
             </div>
@@ -325,7 +321,7 @@ function ProductDetail() {
       {/* Footer */}
       <footer className="border-t border-gray-200 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-gray-600 mt-12 sm:mt-16">
         <p className="font-bold text-gray-900 mb-2">AgriMatch</p>
-        <p>© 2026 AgriMatch. Techiman Regional Hub, Bono East.</p>
+        <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>
       </footer>
     </div>
   )

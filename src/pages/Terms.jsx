@@ -109,7 +109,7 @@ function Terms() {
           <section>
             <h2 className="text-2xl font-bold text-[#1B5E20] mb-4">9. Governing Law</h2>
             <p className="text-gray-700 leading-relaxed">
-              These terms and conditions are governed by and construed in accordance with the laws of Ghana, and you irrevocably submit to the exclusive jurisdiction of the courts in that location.
+              These terms and conditions are governed by and construed in accordance with the laws of Nigeria, and you irrevocably submit to the exclusive jurisdiction of the courts in that location.
             </p>
           </section>
 
@@ -122,8 +122,8 @@ function Terms() {
             <div className="mt-4 p-4 bg-green-50 rounded-lg border-2 border-green-200">
               <p className="font-semibold text-gray-800">AgriMatch Support</p>
               <p className="text-gray-700">Email: support@agrimatch.com</p>
-              <p className="text-gray-700">Phone: +233 (0) 500 000 000</p>
-              <p className="text-gray-700">Location: Techiman, Bono East, Ghana</p>
+              <p className="text-gray-700">Phone: +234 (0) 800 000 0000</p>
+<p className="text-gray-700">Location: Jos, Plateau State, Nigeria</p>
             </div>
           </section>
         </motion.div>

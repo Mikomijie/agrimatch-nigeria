@@ -29,7 +29,6 @@ function USSDSimulator() {
   const press = (char) => setTyped((t) => t + char)
   const backspace = () => setTyped((t) => t.slice(0, -1))
 
-  // Direct selection for single-choice screens (menu, crop) — no typing needed
   const selectMenuOption = (option) => {
     if (option === '1') {
       setStep('crop')
@@ -45,7 +44,6 @@ function USSDSimulator() {
     setTyped('')
   }
 
-  // Multi-digit entry screens still use keypad + SEND
   const handleSend = async () => {
     if (step === 'quantity') {
       if (typed) {
@@ -68,7 +66,7 @@ function USSDSimulator() {
     }
   }
 
- const submitListing = async (finalLocation) => {
+  const submitListing = async (finalLocation) => {
     if (!user?.id) {
       setStep('done')
       return
@@ -101,9 +99,9 @@ function USSDSimulator() {
       case 'quantity':
         return `${crop} selected. Enter quantity in kilograms.`
       case 'price':
-        return `${quantity} kilograms of ${crop}. Enter price per kilogram in Ghana cedis.`
+        return `${quantity} kilograms of ${crop}. Enter price per kilogram in Naira.`
       case 'location':
-        return `Price set at ${price} cedis per kilogram. Enter your pickup location code.`
+        return `Price set at ${price} Naira per kilogram. Enter your pickup location code.`
       case 'checkStatus':
         return 'Order status feature coming soon. Your recent orders will appear here.'
       case 'done':
@@ -124,6 +122,7 @@ function USSDSimulator() {
     speakScreen()
     return () => window.speechSynthesis.cancel()
   }, [step])
+
   const Screen = ({ children }) => (
     <div className="bg-black text-green-400 font-mono text-sm p-4 rounded-md min-h-[160px] flex flex-col justify-between">
       {children}
@@ -176,13 +175,13 @@ function USSDSimulator() {
         return (
           <>
             <p>{quantity}kg {crop}.</p>
-            <p className="mt-2">Enter price per kg (GH₵):</p>
+            <p className="mt-2">Enter price per kg (₦):</p>
           </>
         )
       case 'location':
         return (
           <>
-            <p>GH₵{price}/kg set.</p>
+            <p>₦{price}/kg set.</p>
             <p className="mt-2">Enter pickup location (numbers only for demo):</p>
           </>
         )
@@ -223,10 +222,9 @@ function USSDSimulator() {
     </motion.button>
   )
 
-return (
+  return (
     <div className="min-h-screen bg-white">
-      {/* Login not required for USSD demo */}
-      <header   className="flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-background-warm)] border-b border-gray-200">
+      <header className="flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-background-warm)] border-b border-gray-200">
         <Link to="/" className="font-[var(--font-heading)] italic text-2xl text-[var(--color-primary)]">
           AgriMatch
         </Link>
@@ -316,7 +314,7 @@ return (
         </p>
         <p className="text-xs text-gray-400 text-center mt-2">
           🔊 Tap the speaker icon to hear each screen read aloud — demonstrating accessibility
-          for non-literate users. Production version would use local-language (Twi/Dagbani)
+          for non-literate users. Production version would use local-language (Hausa/Yoruba/Igbo)
           audio.
         </p>
       </main>

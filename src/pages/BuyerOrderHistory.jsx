@@ -131,7 +131,7 @@ function BuyerOrderHistory() {
                     <div className="min-w-0">
                       <h3 className="font-bold text-lg text-gray-900 truncate">{order.listings?.crop_type}</h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        {order.quantity}kg · GH₵{Number(order.total_price).toLocaleString()} · From {order.listings?.users?.name}
+                        {order.quantity}kg · ₦{Number(order.total_price).toLocaleString()} · From {order.listings?.users?.name}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Order #{order.id.slice(0, 8).toUpperCase()}
@@ -198,7 +198,7 @@ function BuyerOrderHistory() {
       {/* Footer */}
       <footer className="border-t border-gray-200 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-gray-600 mt-12 sm:mt-16">
         <p className="font-bold text-gray-900 mb-2">AgriMatch</p>
-        <p>© 2026 AgriMatch. Techiman Regional Hub, Bono East.</p>
+       <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>
       </footer>
     </div>
   )

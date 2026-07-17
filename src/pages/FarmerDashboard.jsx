@@ -41,11 +41,11 @@ function FarmerDashboard() {
   const [editingListing, setEditingListing] = useState(null)
   const [editQuantity, setEditQuantity] = useState('')
   const [editPrice, setEditPrice] = useState('')
- const [deletingId, setDeletingId] = useState(null)
-const [showOrderNotification, setShowOrderNotification] = useState(false)
-const [newOrderMessage, setNewOrderMessage] = useState('')
-const [unreadMessages, setUnreadMessages] = useState(0)
-const [pendingOrders, setPendingOrders] = useState(0)
+  const [deletingId, setDeletingId] = useState(null)
+  const [showOrderNotification, setShowOrderNotification] = useState(false)
+  const [newOrderMessage, setNewOrderMessage] = useState('')
+  const [unreadMessages, setUnreadMessages] = useState(0)
+  const [pendingOrders, setPendingOrders] = useState(0)
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
@@ -115,7 +115,8 @@ const [pendingOrders, setPendingOrders] = useState(0)
       setTimeout(() => setSuccess(false), 3000)
     }
   }
-const startEdit = (listing) => {
+
+  const startEdit = (listing) => {
     setEditingListing(listing.id)
     setEditQuantity(listing.quantity)
     setEditPrice(listing.price_per_unit)
@@ -158,6 +159,7 @@ const startEdit = (listing) => {
     }
     setDeletingId(null)
   }
+
   useEffect(() => {
     async function fetchMyListings() {
       if (!user) return
@@ -171,7 +173,6 @@ const startEdit = (listing) => {
     }
     fetchMyListings()
 
-    // Listen for new orders on this farmer's listings
     const ordersChannel = supabase
       .channel('farmer-new-orders')
       .on(
@@ -266,7 +267,7 @@ const startEdit = (listing) => {
             <Link to="/" className="text-2xl sm:text-3xl font-bold text-[#1B5E20] flex-shrink-0">
               AgriMatch
             </Link>
-           <nav className="hidden md:flex items-center gap-6 sm:gap-8 text-sm font-medium flex-1 justify-center">
+            <nav className="hidden md:flex items-center gap-6 sm:gap-8 text-sm font-medium flex-1 justify-center">
               <button
                 onClick={() => navigate(-1)}
                 className="text-gray-600 hover:text-[#1B5E20] transition-colors font-semibold"
@@ -283,30 +284,30 @@ const startEdit = (listing) => {
                 Marketplace
               </Link>
               <button
-  onClick={() => setShowChat(true)}
-  className="relative text-gray-600 hover:text-[#1B5E20] transition-colors text-sm font-medium"
->
-  Messages
-  {unreadMessages > 0 && (
-    <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-      {unreadMessages}
-    </span>
-  )}
-</button>
-             <Link to="/logistics" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
+                onClick={() => setShowChat(true)}
+                className="relative text-gray-600 hover:text-[#1B5E20] transition-colors text-sm font-medium"
+              >
+                Messages
+                {unreadMessages > 0 && (
+                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                    {unreadMessages}
+                  </span>
+                )}
+              </button>
+              <Link to="/logistics" className="text-gray-600 hover:text-[#1B5E20] transition-colors">
                 Logistics
               </Link>
               <button
-  onClick={() => navigate('/buyer-orders')}
-  className="relative text-gray-600 hover:text-[#1B5E20] transition-colors text-sm font-medium"
->
-  Orders
-  {pendingOrders > 0 && (
-    <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-      {pendingOrders}
-    </span>
-  )}
-</button>
+                onClick={() => navigate('/buyer-orders')}
+                className="relative text-gray-600 hover:text-[#1B5E20] transition-colors text-sm font-medium"
+              >
+                Orders
+                {pendingOrders > 0 && (
+                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {pendingOrders}
+                  </span>
+                )}
+              </button>
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
               <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">
@@ -355,7 +356,7 @@ const startEdit = (listing) => {
                 List your fresh <span className="text-[#2E7D32]">harvest.</span>
               </h1>
               <p className="text-base sm:text-lg text-gray-600 max-w-md">
-                Direct access to Ghanaian retailers and bulk buyers. No middlemen, fair prices.
+                Direct access to Nigerian retailers and bulk buyers. No middlemen, fair prices.
               </p>
             </div>
 
@@ -456,7 +457,7 @@ const startEdit = (listing) => {
                 </div>
                 <div>
                   <label className="block text-xs sm:text-sm font-bold tracking-wider text-gray-700 uppercase mb-2 sm:mb-3">
-                    4. Price per kg (GH₵)
+                    4. Price per kg (₦)
                   </label>
                   <div className="relative">
                     <input
@@ -467,7 +468,7 @@ const startEdit = (listing) => {
                       placeholder="0.00"
                       className="w-full border-2 border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none focus:border-[#1B5E20] focus:ring-2 focus:ring-[#1B5E20]/20 transition-all"
                     />
-                    <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">GH₵</span>
+                    <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">₦</span>
                   </div>
                 </div>
               </div>
@@ -482,7 +483,7 @@ const startEdit = (listing) => {
                   required
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Techiman, Bono East"
+                  placeholder="e.g. Jos, Plateau State"
                   className="w-full border-2 border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none focus:border-[#1B5E20] focus:ring-2 focus:ring-[#1B5E20]/20 transition-all"
                 />
               </div>
@@ -607,7 +608,7 @@ const startEdit = (listing) => {
                               type="number"
                               value={editPrice}
                               onChange={(e) => setEditPrice(e.target.value)}
-                              placeholder="Price/kg"
+                              placeholder="Price/kg (₦)"
                               className="w-1/2 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-[#1B5E20]"
                             />
                           </div>
@@ -636,7 +637,7 @@ const startEdit = (listing) => {
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{listing.crop_type}</p>
                             <p className="text-xs text-gray-600">
-                              {listing.quantity}kg at GH₵{listing.price_per_unit}/kg
+                              {listing.quantity}kg at ₦{Number(listing.price_per_unit).toLocaleString()}/kg
                             </p>
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
@@ -674,7 +675,7 @@ const startEdit = (listing) => {
               <div className="p-4 sm:p-6">
                 <h3 className="font-bold text-gray-900 mb-2 text-sm sm:text-base">Market Trend</h3>
                 <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                  Grade-A tomatoes trending upward in Techiman Hub. Buyers actively seeking quality produce.
+                  Grade-A tomatoes trending upward in Jos Hub. Buyers actively seeking quality produce.
                 </p>
               </div>
             </div>
@@ -699,7 +700,7 @@ const startEdit = (listing) => {
             </div>
           </div>
         </div>
-   </main>
+      </main>
 
       {/* Order Notification Toast */}
       {showOrderNotification && (
@@ -756,9 +757,9 @@ const startEdit = (listing) => {
       )}
 
       {/* Mobile Chat Modal */}
-{(showChat || selectedChat) && (
-  <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col" onClick={(e) => { if (e.target === e.currentTarget) { setShowChat(false); setSelectedChat(null) } }}>
-    <div className="flex flex-col bg-white rounded-t-2xl overflow-hidden mt-auto" style={{ height: '85dvh' }}>
+      {(showChat || selectedChat) && (
+        <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col" onClick={(e) => { if (e.target === e.currentTarget) { setShowChat(false); setSelectedChat(null) } }}>
+          <div className="flex flex-col bg-white rounded-t-2xl overflow-hidden mt-auto" style={{ height: '85dvh' }}>
             {!selectedChat ? (
               <ConversationList
                 currentUser={user}

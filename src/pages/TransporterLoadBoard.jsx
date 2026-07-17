@@ -31,7 +31,7 @@ function LoadCard({ order, onAccept, onUpdateStatus, isMyJob }) {
         <div className="flex items-start justify-between gap-4 mb-2">
           <h3 className="font-bold text-lg text-gray-900">{order.listings?.crop_type}</h3>
           <p className="font-bold text-xl text-[#1B5E20] whitespace-nowrap flex-shrink-0">
-            GH₵{Number(order.total_price).toLocaleString()}
+            ₦{Number(order.total_price).toLocaleString()}
           </p>
         </div>
 
@@ -230,7 +230,7 @@ const handleAccept = async (orderId) => {
             </h1>
             <p className="text-base sm:text-lg text-gray-600 max-w-md">
               {view === 'available' 
-                ? 'Discover and secure high-value delivery jobs across Bono East.'
+                ? 'Discover and secure high-value delivery jobs across Edo State .'
                 : 'Your accepted deliveries and their status.'}
             </p>
           </div>
@@ -379,7 +379,7 @@ const handleAccept = async (orderId) => {
       {/* Footer */}
       <footer className="border-t border-gray-200 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-gray-600 mt-12 sm:mt-16">
         <p className="font-bold text-gray-900 mb-2">AgriMatch</p>
-        <p>© 2026 AgriMatch. Techiman Regional Hub, Bono East.</p>
+       <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>
       </footer>
     </div>
   )

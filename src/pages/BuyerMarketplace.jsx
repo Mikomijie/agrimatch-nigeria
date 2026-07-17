@@ -8,7 +8,7 @@ import ChatWindow from '../components/ChatWindow'
 import ConversationList from '../components/ConversationList'
 
 const CROP_TYPES = ['Tomatoes', 'Peppers', 'Garden Eggs', 'Okra']
-const REGIONS = ['Bono East', 'Ashanti', 'Northern', 'Eastern', 'Volta', 'Greater Accra']
+const REGIONS = ['Plateau', 'Kano', 'Kaduna', 'Benue', 'Niger', 'FCT Abuja']
 
 function BuyerMarketplace() {
   const { user, loading: userLoading } = useCurrentUser()
@@ -19,14 +19,14 @@ function BuyerMarketplace() {
   // Filter states
   const [selectedCrop, setSelectedCrop] = useState('')
   const [selectedLocation, setSelectedLocation] = useState('')
-  const [priceRange, setPriceRange] = useState([0, 5000])
+  const [priceRange, setPriceRange] = useState([0, 500000])
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState('list')
   const [showChat, setShowChat] = useState(false)
   const [selectedChat, setSelectedChat] = useState(null)
   const [chatName, setChatName] = useState('')
-const [unreadMessages, setUnreadMessages] = useState(0)
-const [newOrders, setNewOrders] = useState(0)
+  const [unreadMessages, setUnreadMessages] = useState(0)
+  const [newOrders, setNewOrders] = useState(0)
 
   // Fetch listings with filters
   useEffect(() => {
@@ -36,12 +36,10 @@ const [newOrders, setNewOrders] = useState(0)
         .select('*, users(name, region, rating)')
         .order('created_at', { ascending: false })
 
-      // Apply crop type filter
       if (selectedCrop) {
         query = query.eq('crop_type', selectedCrop)
       }
 
-      // Apply location filter
       if (selectedLocation) {
         query = query.eq('location', selectedLocation)
       }
@@ -51,7 +49,6 @@ const [newOrders, setNewOrders] = useState(0)
       if (error) {
         setError(error.message)
       } else {
-        // Apply price range filter (client-side for better performance)
         const filtered = data.filter(
           (listing) =>
             Number(listing.price_per_unit) >= priceRange[0] &&
@@ -68,7 +65,6 @@ const [newOrders, setNewOrders] = useState(0)
   useEffect(() => {
     if (!user) return
 
-    // Count unread messages
     async function fetchUnread() {
       const { data: msgs } = await supabase
         .from('messages')
@@ -86,8 +82,7 @@ const [newOrders, setNewOrders] = useState(0)
     }
     fetchUnread()
 
-    // Realtime listener
-   const channel = supabase
+    const channel = supabase
       .channel('buyer-notifications')
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
@@ -111,11 +106,10 @@ const [newOrders, setNewOrders] = useState(0)
     return () => { document.body.style.overflow = '' }
   }, [showChat, selectedChat])
 
-  // Reset filters
   const resetFilters = () => {
     setSelectedCrop('')
     setSelectedLocation('')
-    setPriceRange([0, 5000])
+    setPriceRange([0, 500000])
   }
 
   const activeFilterCount = [selectedCrop, selectedLocation].filter(Boolean).length
@@ -173,7 +167,7 @@ const [newOrders, setNewOrders] = useState(0)
           <div>
             <h1 className="font-[var(--font-heading)] text-3xl md:text-4xl">Marketplace</h1>
             <p className="mt-1 text-gray-600 text-sm">
-              Browse fresh produce from verified farmers across Ghana.
+              Browse fresh produce from verified farmers across Nigeria.
             </p>
           </div>
           <button
@@ -231,7 +225,6 @@ const [newOrders, setNewOrders] = useState(0)
               </button>
             </div>
 
-            {/* Filter Card */}
             <div className="border border-gray-200 rounded-lg p-5 space-y-5">
               {/* Crop Type Filter */}
               <div>
@@ -274,14 +267,14 @@ const [newOrders, setNewOrders] = useState(0)
               {/* Price Range Filter */}
               <div>
                 <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  Price per KG: GH₵{priceRange[0]} - GH₵{priceRange[1]}
+                  Price per KG: ₦{priceRange[0].toLocaleString()} - ₦{priceRange[1].toLocaleString()}
                 </label>
                 <div className="mt-3 space-y-2">
                   <input
                     type="range"
                     min="0"
-                    max="5000"
-                    step="100"
+                    max="500000"
+                    step="1000"
                     value={priceRange[0]}
                     onChange={(e) =>
                       setPriceRange([Number(e.target.value), priceRange[1]])
@@ -291,8 +284,8 @@ const [newOrders, setNewOrders] = useState(0)
                   <input
                     type="range"
                     min="0"
-                    max="5000"
-                    step="100"
+                    max="500000"
+                    step="1000"
                     value={priceRange[1]}
                     onChange={(e) =>
                       setPriceRange([priceRange[0], Number(e.target.value)])
@@ -302,7 +295,6 @@ const [newOrders, setNewOrders] = useState(0)
                 </div>
               </div>
 
-              {/* Reset Button */}
               {activeFilterCount > 0 && (
                 <button
                   onClick={resetFilters}
@@ -344,7 +336,6 @@ const [newOrders, setNewOrders] = useState(0)
                     animate={{ opacity: 1, y: 0 }}
                     className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow group"
                   >
-                    {/* Image */}
                     <div className="relative h-40 bg-gray-100 overflow-hidden">
                       <img
                         src={listing.image_url}
@@ -353,21 +344,19 @@ const [newOrders, setNewOrders] = useState(0)
                       />
                     </div>
 
-                    {/* Content */}
                     <div className="p-4">
                       <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)]">
                         {listing.crop_type}
                       </h3>
 
                       <p className="text-sm text-gray-600 mt-1">
-                        {listing.quantity}kg · GH₵{listing.price_per_unit}/kg
+                        {listing.quantity}kg · ₦{Number(listing.price_per_unit).toLocaleString()}/kg
                       </p>
 
                       <p className="text-xs text-gray-500 mt-2">
                         {listing.location}
                       </p>
 
-                      {/* Farmer Info */}
                       <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                         <div>
                           <p className="text-xs font-medium text-gray-700">
@@ -381,7 +370,6 @@ const [newOrders, setNewOrders] = useState(0)
                         </div>
                       </div>
 
-                      {/* Order Button */}
                       <div className="mt-4 space-y-2">
                         <Link
                           to={`/product/${listing.id}`}
@@ -415,13 +403,13 @@ const [newOrders, setNewOrders] = useState(0)
           <p className="font-[var(--font-heading)] text-[var(--color-charcoal)] text-lg">AgriMatch</p>
           <div className="my-4 h-px bg-gray-200" />
           <p className="text-gray-600 text-sm leading-relaxed mb-4">
-            Empowering the backbone of Ghana's economy through technology that respects the soil.
+            Empowering the backbone of Nigeria's economy through technology that respects the soil.
           </p>
           <p className="text-gray-500 text-xs tracking-wide">
-            © 2026 AgriMatch · Techiman Regional Hub, Bono East
+            © 2026 AgriMatch · Jos Regional Hub, Plateau State
           </p>
         </div>
-     </footer>
+      </footer>
 
       {/* Chat Bubble Button */}
       {!showChat && !selectedChat && (
@@ -469,9 +457,9 @@ const [newOrders, setNewOrders] = useState(0)
       )}
 
       {/* Mobile Chat Modal */}
-{(showChat || selectedChat) && (
-  <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col" onClick={(e) => { if (e.target === e.currentTarget) { setShowChat(false); setSelectedChat(null) } }}>
-    <div className="flex flex-col bg-white rounded-t-2xl overflow-hidden mt-auto" style={{ height: '85dvh' }}>
+      {(showChat || selectedChat) && (
+        <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col" onClick={(e) => { if (e.target === e.currentTarget) { setShowChat(false); setSelectedChat(null) } }}>
+          <div className="flex flex-col bg-white rounded-t-2xl overflow-hidden mt-auto" style={{ height: '85dvh' }}>
             {!selectedChat ? (
               <ConversationList
                 currentUser={user}

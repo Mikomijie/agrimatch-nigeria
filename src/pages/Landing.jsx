@@ -58,7 +58,7 @@ function Landing() {
       <section 
         className="relative h-[500px] md:h-[600px] flex items-center justify-center overflow-hidden"
         style={{
-          backgroundImage: 'url(/images/hero-ghana-farming.jpg)',
+          backgroundImage: 'url(/images/hero-nigeria-farming.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
@@ -71,11 +71,11 @@ function Landing() {
           transition={{ duration: 0.7, ease: 'easeOut' }}
         >
           <h1 className="font-[var(--font-heading)] text-4xl md:text-6xl text-white leading-tight">
-            Connecting <span className="italic">Ghana's Harvest</span>
+            Connecting <span className="italic">Nigeria's Harvest</span>
           </h1>
           <p className="mt-4 text-white/90 text-lg mx-auto">
             Eliminating post-harvest loss through a direct, high-performance marketplace for
-            premium Ghanaian produce.
+            premium Nigerian produce.
           </p>
           <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-8">
             <Link
@@ -90,7 +90,7 @@ function Landing() {
 
       {/* Stats strip */}
       <section className="bg-[var(--color-primary)] text-white px-6 md:px-10 py-6 md:py-3 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 text-center text-xs md:text-sm tracking-wide">
-        <span>HARVESTED TODAY IN TECHIMAN</span>
+        <span>HARVESTED TODAY IN JOS</span>
         <span>POST-HARVEST LOSS REDUCED BY 34%</span>
         <span>LIVE LOGISTICS TRACKING</span>
       </section>
@@ -142,12 +142,13 @@ function Landing() {
               Optimize every kilometer.
             </h2>
             <p className="mt-4 text-gray-700 text-sm leading-relaxed">
-              Join a network of vetted carriers with access to high-demand routes from Bono East to urban hubs.
+              Join a network of vetted carriers with access to high-demand routes from Plateau State to urban hubs.
             </p>
           </motion.div>
         </div>
       </AnimatedSection>
-  {/* Why AgriMatch */}
+
+      {/* Why AgriMatch */}
       <AnimatedSection className="bg-white px-6 md:px-10 py-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
@@ -155,7 +156,7 @@ function Landing() {
               Why AgriMatch Works
             </h2>
             <p className="mt-3 text-gray-600 max-w-2xl mx-auto">
-              Built for Ghana's farmers, buyers, and transporters. Trusted technology that delivers results.
+              Built for Nigeria's farmers, buyers, and transporters. Trusted technology that delivers results.
             </p>
           </div>
 
@@ -219,6 +220,7 @@ function Landing() {
           </div>
         </div>
       </AnimatedSection>
+
       {/* Bottom stats */}
       <AnimatedSection className="bg-[var(--color-primary-light)]/40 px-6 md:px-10 py-14 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 text-center">
         <div>
@@ -230,7 +232,7 @@ function Landing() {
         <div>
           <Counter value="2.4" suffix="k+" />
           <p className="text-xs text-gray-600 mt-1">
-            Verified smallholder farmers in the Techiman Hub ecosystem
+            Verified smallholder farmers in the Jos Hub ecosystem
           </p>
         </div>
         <div>
@@ -306,13 +308,13 @@ function Landing() {
           <div className="my-4 h-px bg-gray-200" />
           
           <p className="text-gray-600 text-sm leading-relaxed">
-            Empowering the backbone of Ghana's economy through technology that respects the soil.
+            Empowering the backbone of Nigeria's economy through technology that respects the soil.
           </p>
           
           <div className="my-4 h-px bg-gray-200" />
           
           <p className="text-gray-500 text-xs tracking-wide">
-            © 2026 AgriMatch · Techiman Regional Hub, Bono East
+            © 2026 AgriMatch · Jos Regional Hub, Plateau State
           </p>
         </div>
       </footer>
