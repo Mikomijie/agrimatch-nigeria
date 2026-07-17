@@ -1,6 +1,6 @@
 # AgriMatch
 
-Live Demo: https://agrimatch-three.vercel.app
+Live Demo: https://agrimatch-nigeria.vercel.app/
 
 AgriMatch is a farmer-to-buyer digital marketplace platform that connects smallholder vegetable farmers in Nigeria directly to buyers and transport providers, eliminating middlemen and reducing post-harvest losses. It focuses on the Jos Regional Hub in Plateau State, one of Nigeria's most important vegetable supply corridors.
 
