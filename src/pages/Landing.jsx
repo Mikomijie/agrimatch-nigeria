@@ -58,7 +58,7 @@ function Landing() {
       <section 
         className="relative h-[500px] md:h-[600px] flex items-center justify-center overflow-hidden"
         style={{
-          backgroundImage: 'url(/images/hero-nigeria-farming.jpg)',
+          backgroundImage: 'url(/images/hero-ghana-farming.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
