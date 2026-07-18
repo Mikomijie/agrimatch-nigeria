@@ -68,24 +68,6 @@ function Auth() {
     }
   }
 
-  const checkEmailExists = async (emailValue) => {
-    if (!emailValue || mode === 'login') return
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: emailValue,
-        password: 'checkonly123'
-      })
-
-      if (!error) {
-        setEmailError('Email already registered - try logging in')
-      } else if (error.message.includes('Invalid login')) {
-        setEmailError('')
-      }
-    } catch (err) {
-      setEmailError('')
-    }
-  }
 
   const getFriendlyError = (errorMsg) => {
     if (errorMsg.includes('already registered')) return 'Email already in use - try logging in'
@@ -113,13 +95,13 @@ function Auth() {
     }
 
     let formattedPhone = phone
-    if (!phone.startsWith('+233')) {
-      if (phone.startsWith('0')) {
-        formattedPhone = '+233' + phone.slice(1)
-      } else {
-        formattedPhone = '+233' + phone
-      }
-    }
+if (!phone.startsWith('+234')) {
+  if (phone.startsWith('0')) {
+    formattedPhone = '+234' + phone.slice(1)
+  } else {
+    formattedPhone = '+234' + phone
+  }
+}
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -384,7 +366,7 @@ function Auth() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    onBlur={() => checkEmailExists(email)}
+              
                     className="mt-2 w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#1B5E20] focus:ring-2 focus:ring-[#1B5E20]/20 transition-all bg-white"
                     placeholder="your@email.com"
                     autoComplete="email"
