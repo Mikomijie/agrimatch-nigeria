@@ -10,7 +10,7 @@ const ROLES = [
   { id: 'transporter', label: 'Transporter' }
 ]
 
-const REGIONS = ['Bono East', 'Ashanti', 'Northern', 'Eastern', 'Volta', 'Greater Accra', 'Western', 'Central']
+const REGIONS = ['Lagos', 'Kano', 'Kaduna', 'Plateau', 'Edo', 'Osun', 'Benue', 'FCT Abuja', 'Rivers', 'Enugu', 'Bauchi', 'Katsina']
 
 function Auth() {
   const navigate = useNavigate()
@@ -325,7 +325,7 @@ function Auth() {
                   <label className="text-xs font-bold tracking-wider text-gray-700 uppercase">Phone Number</label>
                   <div className="mt-2 flex items-center gap-2">
                     <div className="flex items-center px-3 py-3 border-2 border-gray-300 rounded-lg bg-gray-50">
-                      <span className="text-sm font-semibold text-gray-600">+233</span>
+                      <span className="text-sm font-semibold text-gray-600">+234</span>
                     </div>
                     <input
                       type="tel"
