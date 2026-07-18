@@ -54,10 +54,10 @@ function Auth() {
       setPhoneError('')
       return
     }
-    if (cleaned.length !== 9) {
-      setPhoneError(`Need 9 digits (you have ${cleaned.length})`)
+    if (cleaned.length !== 10) {
+      setPhoneError(`Need 10 digits (you have ${cleaned.length})`)
     } else {
-      setPhoneError('Valid Ghana number')
+      setPhoneError('Valid Nigerian number')
     }
   }
 
@@ -337,8 +337,8 @@ function Auth() {
                         validatePhone(cleaned)
                       }}
                       className="flex-1 border-2 border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#1B5E20] focus:ring-2 focus:ring-[#1B5E20]/20 transition-all bg-white"
-                      placeholder="201 234567"
-                      maxLength="9"
+                      placeholder="8012345678"
+                      maxLength="10"
                       autoComplete="tel"
                     />
                   </div>
