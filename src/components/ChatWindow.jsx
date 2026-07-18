@@ -10,6 +10,14 @@ function ChatWindow({ conversationWith, conversationName, currentUser, orderId, 
   const [loading, setLoading] = useState(true)
   const messagesEndRef = useRef(null)
 
+  if (!currentUser || !currentUser.id) {
+    return (
+      <div className="flex items-center justify-center h-full bg-white rounded-lg">
+        <p className="text-gray-500">Please log in to chat</p>
+      </div>
+    )
+  }
+
   useEffect(() => {
     fetchMessages()
     const interval = setInterval(fetchMessages, 1500)
