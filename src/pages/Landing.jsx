@@ -25,20 +25,6 @@ function AnimatedSection({ children, className = '' }) {
   )
 }
 
-function Counter({ value, suffix = '' }) {
-  return (
-    <motion.p
-      className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-primary-dark)]"
-      initial={{ opacity: 0, scale: 0.8 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5 }}
-    >
-      {value}{suffix}
-    </motion.p>
-  )
-}
-
 function Landing() {
   return (
     <div className="min-h-screen bg-white">
@@ -167,6 +153,66 @@ function Landing() {
               </div>
               <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">Fast Logistics</h3>
               <p className="mt-3 text-gray-600 text-sm leading-relaxed">Farm to buyer in record time. Coordinated, reliable transport network.</p>
+            </motion.div>
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* How It Works */}
+      <AnimatedSection className="bg-[var(--color-primary-light)]/40 px-6 md:px-10 py-16">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)]">How It Works</h2>
+            <p className="mt-3 text-gray-600 max-w-2xl mx-auto">Get started with AgriMatch in four simple steps.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <motion.div 
+              variants={fadeUp}
+              transition={{ duration: 0.6 }}
+              className="text-center"
+            >
+              <div className="w-16 h-16 bg-[#1B5E20] text-white rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-2xl">
+                1
+              </div>
+              <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)]">List Your Produce</h3>
+              <p className="mt-3 text-gray-600 text-sm">Add your fresh harvest with photos, quantity, and pricing in minutes.</p>
+            </motion.div>
+
+            <motion.div 
+              variants={fadeUp}
+              transition={{ duration: 0.6 }}
+              className="text-center"
+            >
+              <div className="w-16 h-16 bg-[#BF360C] text-white rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-2xl">
+                2
+              </div>
+              <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)]">Connect with Buyers</h3>
+              <p className="mt-3 text-gray-600 text-sm">Buyers discover your products and reach out directly for orders.</p>
+            </motion.div>
+
+            <motion.div 
+              variants={fadeUp}
+              transition={{ duration: 0.6 }}
+              className="text-center"
+            >
+              <div className="w-16 h-16 bg-[#0D47A1] text-white rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-2xl">
+                3
+              </div>
+              <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)]">Arrange Delivery</h3>
+              <p className="mt-3 text-gray-600 text-sm">Coordinate with our logistics partners for safe and timely delivery.</p>
+            </motion.div>
+
+            <motion.div 
+              variants={fadeUp}
+              transition={{ duration: 0.6 }}
+              className="text-center"
+            >
+              <div className="w-16 h-16 bg-[#2E7D32] text-white rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-2xl">
+                4
+              </div>
+              <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)]">Get Paid</h3>
+              <p className="mt-3 text-gray-600 text-sm">Receive secure payments directly to your account with no delays.</p>
             </motion.div>
           </div>
         </div>
