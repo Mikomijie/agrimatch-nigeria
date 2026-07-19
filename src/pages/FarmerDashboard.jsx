@@ -91,15 +91,17 @@ function FarmerDashboard() {
       imageUrl = publicUrlData.publicUrl
     }
 
-    const { error } = await supabase.from('listings').insert({
-      farmer_id: user.id,
-      crop_type: selectedCrop,
-      quantity: Number(quantity),
-      price_per_unit: Number(price),
-      location,
-      freshness,
-      image_url: imageUrl,
-    })
+  const { error } = await supabase.from('products').insert({
+  farmer_id: user.id,
+  product_name: selectedCrop,
+  product_type: selectedCrop,
+  quantity: Number(quantity),
+  price: Number(price),
+  location,
+  description: freshness,
+  image_url: imageUrl,
+  freshness_status: freshness,
+})
 
     setSubmitting(false)
 
@@ -151,7 +153,7 @@ function FarmerDashboard() {
 
   const deleteListing = async (listingId) => {
     setDeletingId(listingId)
-    const { error } = await supabase.from('listings').delete().eq('id', listingId)
+    const { error } = await supabase.from('products').delete().eq('id', id)
 
     if (!error) {
       setMyListings((prev) => prev.filter((l) => l.id !== listingId))
@@ -164,9 +166,9 @@ function FarmerDashboard() {
     async function fetchMyListings() {
       if (!user) return
       const { data } = await supabase
-        .from('listings')
-        .select('*')
-        .eq('farmer_id', user.id)
+        .from('products')
+.select('*')
+.eq('farmer_id', user.id)
         .order('created_at', { ascending: false })
       setMyListings(data || [])
       setListingCount(data?.length || 0)
