@@ -20,8 +20,8 @@ function ProductDetail() {
   useEffect(() => {
     async function fetchProduct() {
       const { data, error } = await supabase
-        .from('listings')
-        .select('*, users(name, rating)')
+        .from('products')
+        .select('*, farmer_id, profiles(full_name, rating)')
         .eq('id', id)
         .single()
 
@@ -63,8 +63,8 @@ function ProductDetail() {
       name: user?.name || 'AgriMatch Buyer',
     },
     customizations: {
-      title: `AgriMatch - ${product.crop_type}`,
-      description: `${quantity}kg of ${product.crop_type} from ${product.users?.name}`,
+      title: `AgriMatch - ${product.product_name}`,
+      description: `${quantity}kg of ${product.product_name} from ${product.profiles?.full_name}`,
     },
   }
 
@@ -77,12 +77,14 @@ function ProductDetail() {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          listing_id: product.id,
+          product_id: product.id,
           buyer_id: user.id,
+          farmer_id: product.farmer_id,
           quantity: quantity,
           total_price: total,
-          status: 'pending',
+          logistics_fee: 5000,
           payment_status: 'processing',
+          delivery_status: 'pending',
         })
         .select()
         .single()
@@ -105,7 +107,7 @@ function ProductDetail() {
               payment_status: 'paid',
               transaction_id: response.transaction_id,
               payment_date: new Date().toISOString(),
-              status: 'confirmed',
+              delivery_status: 'confirmed',
             })
             .eq('id', orderData.id)
 
@@ -138,7 +140,6 @@ function ProductDetail() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAFAF8] to-[#F5F3F0]">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
           <div className="flex items-center justify-between gap-4">
@@ -187,17 +188,16 @@ function ProductDetail() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12">
         <div className="grid md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 items-start">
-          {/* Left - Product Info */}
           <div>
             <p className="text-xs sm:text-sm font-bold tracking-wider text-gray-600 uppercase mb-3 sm:mb-4">
               <span className="w-2 h-2 rounded-full bg-[#1B5E20] inline-block mr-2 animate-pulse" />
-              {product.freshness}
+              Fresh
             </p>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-4 sm:mb-6">
-              {product.crop_type}
+              {product.product_name}
             </h1>
             <p className="text-base sm:text-lg text-gray-600 max-w-md leading-relaxed">
-              Sun-cured, freshly harvested produce from the mineral-rich soils of the Jos Plateau, grown using traditional cultivation techniques.
+              {product.description || 'Premium quality produce directly from verified farmers across Nigeria.'}
             </p>
 
             <div className="grid grid-cols-2 gap-6 mt-8 sm:mt-10">
@@ -211,41 +211,36 @@ function ProductDetail() {
               </div>
               <div>
                 <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-2">Price per kg</p>
-                <p className="text-2xl sm:text-3xl font-bold text-gray-900">₦{Number(product.price_per_unit).toLocaleString()}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">₦{Number(product.price).toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-2">Farmer Rating</p>
-                <p className="text-2xl sm:text-3xl font-bold text-gray-900">★ {product.users?.rating}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">★ {product.profiles?.rating || 5}</p>
               </div>
             </div>
           </div>
 
-          {/* Right - Product Image & Order */}
           <div className="space-y-6">
-            {/* Product Image */}
             <div className="rounded-xl sm:rounded-2xl overflow-hidden border-2 border-gray-200 shadow-sm">
-              <img src={product.image_url} alt={product.crop_type} className="w-full h-64 sm:h-80 object-cover" />
+              <img src={product.image_url} alt={product.product_name} className="w-full h-64 sm:h-80 object-cover" />
             </div>
 
-            {/* Farmer Card */}
             <div className="bg-white rounded-lg sm:rounded-xl border-2 border-gray-200 p-4 sm:p-6 shadow-sm">
               <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-4">Verified Grower</p>
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-[#1B5E20] rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                  {product.users?.name?.charAt(0).toUpperCase()}
+                  {product.profiles?.full_name?.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 text-base">{product.users?.name}</h3>
-                  <p className="text-sm text-gray-600">★ {product.users?.rating} rating</p>
+                  <h3 className="font-bold text-gray-900 text-base">{product.profiles?.full_name}</h3>
+                  <p className="text-sm text-gray-600">★ {product.profiles?.rating || 5} rating</p>
                 </div>
               </div>
             </div>
 
-            {/* Order Form */}
             <div className="bg-white rounded-lg sm:rounded-xl border-2 border-gray-200 p-6 sm:p-8 shadow-sm">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Select Order Details</h2>
 
-              {/* Quantity */}
               <div className="mb-8">
                 <label className="block text-xs font-bold tracking-wider text-gray-700 uppercase mb-4">Quantity (kilograms)</label>
                 <div className="flex items-center gap-4">
@@ -265,14 +260,13 @@ function ProductDetail() {
                 </div>
               </div>
 
-              {/* Pricing */}
               <div className="space-y-3 mb-8 pt-6 border-t border-gray-200">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-bold text-gray-900">₦{subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Logistics Fee (Jos → Abuja)</span>
+                  <span className="text-gray-600">Logistics Fee</span>
                   <span className="font-bold text-gray-900">₦{logisticsFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-3 mt-3">
@@ -281,7 +275,6 @@ function ProductDetail() {
                 </div>
               </div>
 
-              {/* Escrow Info */}
               <div className="bg-[#E8F5E9] border-2 border-[#1B5E20]/20 rounded-lg p-4 mb-6">
                 <p className="text-sm font-bold text-[#1B5E20] mb-2">Escrow Guaranteed</p>
                 <p className="text-xs text-gray-700 leading-relaxed">
@@ -289,14 +282,12 @@ function ProductDetail() {
                 </p>
               </div>
 
-              {/* Error Message */}
               {error && (
                 <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 mb-6">
                   <p className="text-sm text-red-700 font-medium">{error}</p>
                 </div>
               )}
 
-              {/* Payment Button */}
               {paymentProcessing ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -318,10 +309,9 @@ function ProductDetail() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-gray-200 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-gray-600 mt-12 sm:mt-16">
         <p className="font-bold text-gray-900 mb-2">AgriMatch</p>
-        <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>
+        <p>© 2026 AgriMatch. Nigeria-wide agricultural marketplace.</p>
       </footer>
     </div>
   )

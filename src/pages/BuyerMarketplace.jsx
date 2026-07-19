@@ -32,9 +32,9 @@ function BuyerMarketplace() {
   useEffect(() => {
     async function fetchListings() {
       let query = supabase
-        .from('listings')
-        .select('*, users(name, region, rating)')
-        .order('created_at', { ascending: false })
+  .from('products')
+  .select('*, farmer_id, profiles(full_name, rating)')
+  .order('created_at', { ascending: false })
 
       if (selectedCrop) {
         query = query.eq('crop_type', selectedCrop)
@@ -360,13 +360,13 @@ function BuyerMarketplace() {
                       <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                         <div>
                           <p className="text-xs font-medium text-gray-700">
-                            {listing.users?.name}
-                          </p>
-                          {listing.users?.rating && (
-                            <p className="text-xs text-yellow-600">
-                              ⭐ {listing.users.rating.toFixed(1)}
-                            </p>
-                          )}
+  {listing.profiles?.full_name}
+</p>
+{listing.profiles?.rating && (
+  <p className="text-xs text-yellow-600">
+    ⭐ {listing.profiles?.rating.toFixed(1)}
+  </p>
+)}
                         </div>
                       </div>
 
@@ -380,7 +380,7 @@ function BuyerMarketplace() {
                         <button
                           onClick={() => {
                             setSelectedChat(listing.farmer_id)
-                            setChatName(listing.users?.name)
+                            setChatName(listing.profiles?.full_name)
                             setShowChat(true)
                           }}
                           className="w-full border border-[#2E7D32] text-[#2E7D32] px-4 py-2 rounded-md text-sm font-medium hover:bg-[#E8F5E9] transition-all"
