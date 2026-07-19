@@ -42,7 +42,6 @@ function Counter({ value, suffix = '' }) {
 function Landing() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
       <header className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 py-5 bg-[#0F1C2E] backdrop-blur-sm border-b border-gray-700">
         <span className="font-[var(--font-heading)] italic text-2xl text-white">
           AgriMatch
@@ -54,7 +53,6 @@ function Landing() {
         </nav>
       </header>
 
-    {/* Hero */}
       <section 
         className="relative h-[500px] md:h-[600px] flex items-center justify-center overflow-hidden"
         style={{
@@ -74,8 +72,7 @@ function Landing() {
             Connecting <span className="italic">Nigeria's Harvest</span>
           </h1>
           <p className="mt-4 text-white/90 text-lg mx-auto">
-            Eliminating post-harvest loss through a direct, high-performance marketplace for
-            premium Nigerian produce.
+            Eliminating post-harvest loss through a direct, high-performance marketplace for premium Nigerian produce.
           </p>
           <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-8">
             <Link
@@ -88,14 +85,12 @@ function Landing() {
         </motion.div>
       </section>
 
-      {/* Stats strip */}
       <section className="bg-[var(--color-primary)] text-white px-6 md:px-10 py-6 md:py-3 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 text-center text-xs md:text-sm tracking-wide">
-        <span>HARVESTED TODAY IN JOS</span>
-        <span>POST-HARVEST LOSS REDUCED BY 34%</span>
+        <span>HARVESTED TODAY IN NIGERIA</span>
+        <span>DIRECT FARMER-TO-BUYER CONNECTIONS</span>
         <span>LIVE LOGISTICS TRACKING</span>
       </section>
 
-      {/* Three role sections */}
       <AnimatedSection className="bg-gray-50 px-6 md:px-10 py-16">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           <motion.div 
@@ -103,15 +98,9 @@ function Landing() {
             transition={{ duration: 0.6 }}
             className="bg-[#E8F5E9] rounded-lg p-8 hover:shadow-lg transition-shadow"
           >
-            <p className="text-xs font-semibold text-[#2E7D32] tracking-wide">
-              01 / FOR FARMERS
-            </p>
-            <h2 className="font-[var(--font-heading)] text-xl mt-4 text-[#1B5E20]">
-              Command the value your soil deserves.
-            </h2>
-            <p className="mt-4 text-gray-700 text-sm leading-relaxed">
-              Direct access to high-volume buyers. No intermediaries, no uncertainty. Real-time pricing and guaranteed logistics.
-            </p>
+            <p className="text-xs font-semibold text-[#2E7D32] tracking-wide">01 / FOR FARMERS</p>
+            <h2 className="font-[var(--font-heading)] text-xl mt-4 text-[#1B5E20]">Command the value your soil deserves.</h2>
+            <p className="mt-4 text-gray-700 text-sm leading-relaxed">Direct access to high-volume buyers. No intermediaries, no uncertainty. Real-time pricing and guaranteed logistics.</p>
           </motion.div>
 
           <motion.div 
@@ -119,15 +108,9 @@ function Landing() {
             transition={{ duration: 0.6 }}
             className="bg-[#FFE8D6] rounded-lg p-8 hover:shadow-lg transition-shadow"
           >
-            <p className="text-xs font-semibold text-[#D84315] tracking-wide">
-              02 / FOR BUYERS
-            </p>
-            <h2 className="font-[var(--font-heading)] text-xl mt-4 text-[#BF360C]">
-              Sourcing with surgical precision.
-            </h2>
-            <p className="mt-4 text-gray-700 text-sm leading-relaxed">
-              Trace every kilogram back to its origin, with documented harvest times and a verified farmer network.
-            </p>
+            <p className="text-xs font-semibold text-[#D84315] tracking-wide">02 / FOR BUYERS</p>
+            <h2 className="font-[var(--font-heading)] text-xl mt-4 text-[#BF360C]">Sourcing with surgical precision.</h2>
+            <p className="mt-4 text-gray-700 text-sm leading-relaxed">Trace every kilogram back to its origin, with documented harvest times and a verified farmer network.</p>
           </motion.div>
 
           <motion.div 
@@ -135,187 +118,94 @@ function Landing() {
             transition={{ duration: 0.6 }}
             className="bg-[#E1F5FE] rounded-lg p-8 hover:shadow-lg transition-shadow"
           >
-            <p className="text-xs font-semibold text-[#01579B] tracking-wide">
-              03 / FOR TRANSPORTERS
-            </p>
-            <h2 className="font-[var(--font-heading)] text-xl mt-4 text-[#0D47A1]">
-              Optimize every kilometer.
-            </h2>
-            <p className="mt-4 text-gray-700 text-sm leading-relaxed">
-              Join a network of vetted carriers with access to high-demand routes from Plateau State to urban hubs.
-            </p>
+            <p className="text-xs font-semibold text-[#01579B] tracking-wide">03 / FOR TRANSPORTERS</p>
+            <h2 className="font-[var(--font-heading)] text-xl mt-4 text-[#0D47A1]">Optimize every kilometer.</h2>
+            <p className="mt-4 text-gray-700 text-sm leading-relaxed">Join a network of vetted carriers with access to high-demand routes across Nigeria.</p>
           </motion.div>
         </div>
       </AnimatedSection>
 
-      {/* Why AgriMatch */}
       <AnimatedSection className="bg-white px-6 md:px-10 py-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)]">
-              Why AgriMatch Works
-            </h2>
-            <p className="mt-3 text-gray-600 max-w-2xl mx-auto">
-              Built for Nigeria's farmers, buyers, and transporters. Trusted technology that delivers results.
-            </p>
+            <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)]">Why AgriMatch Works</h2>
+            <p className="mt-3 text-gray-600 max-w-2xl mx-auto">Built for Nigeria's farmers, buyers, and transporters. Trusted technology that delivers results.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Card 1 */}
             <motion.div 
               variants={fadeUp}
               transition={{ duration: 0.6 }}
               className="p-8 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow group"
             >
               <div className="w-12 h-12 bg-[#E8F5E9] rounded-lg flex items-center justify-center mb-6 group-hover:bg-[#1B5E20] transition-colors">
-                <span className="font-[var(--font-heading)] text-xl font-bold text-[#1B5E20] group-hover:text-white transition-colors">
-                  01
-                </span>
+                <span className="font-[var(--font-heading)] text-xl font-bold text-[#1B5E20] group-hover:text-white transition-colors">01</span>
               </div>
-              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">
-                Real-Time Pricing
-              </h3>
-              <p className="mt-3 text-gray-600 text-sm leading-relaxed">
-                No middlemen. Get fair prices updated daily based on live market data.
-              </p>
+              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">Real-Time Pricing</h3>
+              <p className="mt-3 text-gray-600 text-sm leading-relaxed">No middlemen. Get fair prices updated daily based on live market data.</p>
             </motion.div>
 
-            {/* Card 2 */}
             <motion.div 
               variants={fadeUp}
               transition={{ duration: 0.6 }}
               className="p-8 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow group"
             >
               <div className="w-12 h-12 bg-[#FFE8D6] rounded-lg flex items-center justify-center mb-6 group-hover:bg-[#BF360C] transition-colors">
-                <span className="font-[var(--font-heading)] text-xl font-bold text-[#BF360C] group-hover:text-white transition-colors">
-                  02
-                </span>
+                <span className="font-[var(--font-heading)] text-xl font-bold text-[#BF360C] group-hover:text-white transition-colors">02</span>
               </div>
-              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">
-                Verified Farmers
-              </h3>
-              <p className="mt-3 text-gray-600 text-sm leading-relaxed">
-                Every producer is vetted. Trace every kilogram back to its source.
-              </p>
+              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">Verified Farmers</h3>
+              <p className="mt-3 text-gray-600 text-sm leading-relaxed">Every producer is vetted. Trace every kilogram back to its source.</p>
             </motion.div>
 
-            {/* Card 3 */}
             <motion.div 
               variants={fadeUp}
               transition={{ duration: 0.6 }}
               className="p-8 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow group"
             >
               <div className="w-12 h-12 bg-[#E1F5FE] rounded-lg flex items-center justify-center mb-6 group-hover:bg-[#0D47A1] transition-colors">
-                <span className="font-[var(--font-heading)] text-xl font-bold text-[#0D47A1] group-hover:text-white transition-colors">
-                  03
-                </span>
+                <span className="font-[var(--font-heading)] text-xl font-bold text-[#0D47A1] group-hover:text-white transition-colors">03</span>
               </div>
-              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">
-                Fast Logistics
-              </h3>
-              <p className="mt-3 text-gray-600 text-sm leading-relaxed">
-                Farm to buyer in 12 hours. Coordinated, reliable transport network.
-              </p>
+              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">Fast Logistics</h3>
+              <p className="mt-3 text-gray-600 text-sm leading-relaxed">Farm to buyer in record time. Coordinated, reliable transport network.</p>
             </motion.div>
           </div>
         </div>
       </AnimatedSection>
 
-      {/* Bottom stats */}
-      <AnimatedSection className="bg-[var(--color-primary-light)]/40 px-6 md:px-10 py-14 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 text-center">
-        <div>
-          <Counter value="40" suffix="%" />
-          <p className="text-xs text-gray-600 mt-1">
-            Average post-harvest loss in traditional supply chains
-          </p>
-        </div>
-        <div>
-          <Counter value="2.4" suffix="k+" />
-          <p className="text-xs text-gray-600 mt-1">
-            Verified smallholder farmers in the Jos Hub ecosystem
-          </p>
-        </div>
-        <div>
-          <Counter value="12" suffix="hrs" />
-          <p className="text-xs text-gray-600 mt-1">
-            Maximum time from harvest to logistics pickup
-          </p>
-        </div>
-      </AnimatedSection>
-
-      {/* USSD Simulator CTA */}
       <AnimatedSection className="bg-[#1B5E20] text-white px-6 md:px-10 py-16 text-center">
         <motion.div variants={fadeUp} transition={{ duration: 0.6 }}>
-          <p className="text-xs font-semibold tracking-wide text-green-300 uppercase mb-3">
-            Low-Connectivity Mode
-          </p>
-          <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-white">
-            No smartphone? No problem.
-          </h2>
-          <p className="mt-4 text-green-100 max-w-xl mx-auto text-sm leading-relaxed">
-            Farmers without internet access can list produce and check orders via USSD — just like dialing *920#. Try the live simulator below.
-          </p>
+          <p className="text-xs font-semibold tracking-wide text-green-300 uppercase mb-3">Low-Connectivity Mode</p>
+          <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-white">No smartphone? No problem.</h2>
+          <p className="mt-4 text-green-100 max-w-xl mx-auto text-sm leading-relaxed">Farmers without internet access can list produce and check orders via USSD — just like dialing *920#. Try the live simulator below.</p>
           <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-8">
-            <Link
-              to="/ussd"
-              className="inline-block bg-white text-[#1B5E20] px-8 py-3 rounded-md font-bold tracking-wide hover:brightness-95 transition-all"
-            >
+            <Link to="/ussd" className="inline-block bg-white text-[#1B5E20] px-8 py-3 rounded-md font-bold tracking-wide hover:brightness-95 transition-all">
               TRY USSD SIMULATOR →
             </Link>
           </motion.div>
         </motion.div>
       </AnimatedSection>
 
-      {/* Footer CTA */}
       <AnimatedSection className="text-center py-16 px-6">
-        <motion.h2
-          variants={fadeUp}
-          transition={{ duration: 0.6 }}
-          className="font-[var(--font-heading)] text-3xl md:text-4xl"
-        >
+        <motion.h2 variants={fadeUp} transition={{ duration: 0.6 }} className="font-[var(--font-heading)] text-3xl md:text-4xl">
           Ready to bridge the <span className="italic">distance?</span>
         </motion.h2>
-        <motion.div
-          variants={fadeUp}
-          transition={{ duration: 0.6 }}
-          className="mt-6 flex gap-4 justify-center"
-        >
+        <motion.div variants={fadeUp} transition={{ duration: 0.6 }} className="mt-6 flex gap-4 justify-center">
           <motion.div whileTap={{ scale: 0.96 }}>
-            <Link
-              to="/auth"
-              className="inline-block bg-[var(--color-primary)] text-white px-6 py-3 rounded-md font-medium"
-            >
-              JOIN THE NETWORK
-            </Link>
+            <Link to="/auth" className="inline-block bg-[var(--color-primary)] text-white px-6 py-3 rounded-md font-medium">JOIN THE NETWORK</Link>
           </motion.div>
           <motion.div whileTap={{ scale: 0.96 }}>
-            <Link
-              to="/marketplace"
-              className="inline-block border border-[var(--color-primary)] text-[var(--color-primary)] px-6 py-3 rounded-md font-medium hover:bg-[var(--color-primary)]/5 transition-colors"
-            >
-              LEARN MORE
-            </Link>
+            <Link to="/marketplace" className="inline-block border border-[var(--color-primary)] text-[var(--color-primary)] px-6 py-3 rounded-md font-medium hover:bg-[var(--color-primary)]/5 transition-colors">LEARN MORE</Link>
           </motion.div>
         </motion.div>
       </AnimatedSection>
 
       <footer className="border-t border-gray-200 px-6 md:px-10 py-12 text-center">
         <div className="max-w-2xl mx-auto">
-          <p className="font-[var(--font-heading)] text-[var(--color-charcoal)] text-lg">
-            AgriMatch
-          </p>
-          
+          <p className="font-[var(--font-heading)] text-[var(--color-charcoal)] text-lg">AgriMatch</p>
           <div className="my-4 h-px bg-gray-200" />
-          
-          <p className="text-gray-600 text-sm leading-relaxed">
-            Empowering the backbone of Nigeria's economy through technology that respects the soil.
-          </p>
-          
+          <p className="text-gray-600 text-sm leading-relaxed">Empowering the backbone of Nigeria's economy through technology that respects the soil.</p>
           <div className="my-4 h-px bg-gray-200" />
-          
-          <p className="text-gray-500 text-xs tracking-wide">
-            © 2026 AgriMatch · Jos Regional Hub, Plateau State
-          </p>
+          <p className="text-gray-500 text-xs tracking-wide">© 2026 AgriMatch · Nigeria-wide agricultural marketplace</p>
         </div>
       </footer>
     </div>
