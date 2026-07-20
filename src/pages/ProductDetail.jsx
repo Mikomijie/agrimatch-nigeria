@@ -47,7 +47,7 @@ function ProductDetail() {
     </div>
   )
 
-  const subtotal = quantity * product.price_
+  const subtotal = quantity * product.price
   const logisticsFee = 5000
   const total = subtotal + logisticsFee
 
