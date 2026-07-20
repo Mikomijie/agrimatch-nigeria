@@ -121,7 +121,7 @@ function FarmerDashboard() {
   const startEdit = (listing) => {
     setEditingListing(listing.id)
     setEditQuantity(listing.quantity)
-    setEditPrice(listing.price_per_unit)
+    setEditPrice(listing.price)
   }
 
   const cancelEdit = () => {
@@ -130,13 +130,12 @@ function FarmerDashboard() {
     setEditPrice('')
   }
 
-  const saveEdit = async (listingId) => {
-    const { error } = await supabase
-      .from('listings')
-      .update({
-        quantity: Number(editQuantity),
-        price_per_unit: Number(editPrice),
-      })
+  const { error } = await supabase
+  .from('products')
+  .update({
+    quantity: Number(editQuantity),
+    price: Number(editPrice),
+  })
       .eq('id', listingId)
 
     if (!error) {
@@ -153,7 +152,7 @@ function FarmerDashboard() {
 
   const deleteListing = async (listingId) => {
     setDeletingId(listingId)
-    const { error } = await supabase.from('products').delete().eq('id', id)
+    const { error } = await supabase.from('products').delete().eq('id', listingId)
 
     if (!error) {
       setMyListings((prev) => prev.filter((l) => l.id !== listingId))
@@ -639,7 +638,7 @@ function FarmerDashboard() {
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{listing.crop_type}</p>
                             <p className="text-xs text-gray-600">
-                              {listing.quantity}kg at ₦{Number(listing.price_per_unit).toLocaleString()}/kg
+                              {listing.quantity}kg at ₦{Number(listing.price).toLocaleString()}/kg
                             </p>
                           </div>
                           <div className="flex gap-1 flex-shrink-0">

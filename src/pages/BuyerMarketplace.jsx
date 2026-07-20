@@ -37,7 +37,7 @@ function BuyerMarketplace() {
   .order('created_at', { ascending: false })
 
       if (selectedCrop) {
-        query = query.eq('crop_type', selectedCrop)
+        query = query.eq('product_type', selectedCrop)
       }
 
       if (selectedLocation) {
@@ -51,8 +51,8 @@ function BuyerMarketplace() {
       } else {
         const filtered = data.filter(
           (listing) =>
-            Number(listing.price_per_unit) >= priceRange[0] &&
-            Number(listing.price_per_unit) <= priceRange[1]
+            Number(listing.price) >= priceRange[0] &&
+Number(listing.price) <= priceRange[1]
         )
         setListings(filtered)
       }
@@ -350,8 +350,7 @@ function BuyerMarketplace() {
                       </h3>
 
                       <p className="text-sm text-gray-600 mt-1">
-                        {listing.quantity}kg · ₦{Number(listing.price_per_unit).toLocaleString()}/kg
-                      </p>
+                        {listing.quantity}kg · ₦{Number(listing.price).toLocaleString()}/kg
 
                       <p className="text-xs text-gray-500 mt-2">
                         {listing.location}
