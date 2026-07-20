@@ -345,19 +345,19 @@ Number(listing.price) <= priceRange[1]
                     <div className="relative h-40 bg-gray-100 overflow-hidden">
                       <img
                         src={listing.image_url}
-                        alt={listing.crop_type}
+                        alt={listing.product_name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                     </div>
 
                     <div className="p-4">
                       <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)]">
-                        {listing.crop_type}
+                        {listing.product_name}
                       </h3>
 
                       <p className="text-sm text-gray-600 mt-1">
                         {listing.quantity}kg · ₦{Number(listing.price).toLocaleString()}/kg
-
+                      </p>
                       <p className="text-xs text-gray-500 mt-2">
                         {listing.location}
                       </p>

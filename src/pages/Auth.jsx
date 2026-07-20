@@ -153,10 +153,10 @@ if (!phone.startsWith('+234')) {
     } else {
       // Fetch user role from database
       const { data: userData } = await supabase
-        .from('users')
-        .select('role')
-        .eq('auth_id', data.user.id)
-        .single()
+  .from('profiles')
+  .select('role')
+  .eq('id', data.user.id)
+  .single()
 
       notify.success('Logged in successfully!')
       setSuccess('Logged in successfully! Redirecting...')

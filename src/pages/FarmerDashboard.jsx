@@ -130,19 +130,20 @@ function FarmerDashboard() {
     setEditPrice('')
   }
 
-  const { error } = await supabase
-  .from('products')
-  .update({
-    quantity: Number(editQuantity),
-    price: Number(editPrice),
-  })
+const saveEdit = async (listingId) => {
+    const { error } = await supabase
+      .from('products')
+      .update({
+        quantity: Number(editQuantity),
+        price: Number(editPrice),
+      })
       .eq('id', listingId)
 
     if (!error) {
       setMyListings((prev) =>
         prev.map((l) =>
           l.id === listingId
-            ? { ...l, quantity: Number(editQuantity), price_per_unit: Number(editPrice) }
+            ? { ...l, quantity: Number(editQuantity), price: Number(editPrice) }
             : l
         )
       )
