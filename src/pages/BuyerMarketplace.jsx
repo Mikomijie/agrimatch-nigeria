@@ -8,8 +8,14 @@ import ChatWindow from '../components/ChatWindow'
 import ConversationList from '../components/ConversationList'
 
 const CROP_TYPES = ['Tomatoes', 'Peppers', 'Garden Eggs', 'Okra']
-const REGIONS = ['Plateau', 'Kano', 'Kaduna', 'Benue', 'Niger', 'FCT Abuja']
-
+const REGIONS = [
+  'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa',
+  'Benue', 'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo',
+  'Ekiti', 'Enugu', 'FCT Abuja', 'Gombe', 'Imo', 'Jigawa',
+  'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara',
+  'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun',
+  'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara'
+]
 function BuyerMarketplace() {
   const { user, loading: userLoading } = useCurrentUser()
   const [listings, setListings] = useState([])
