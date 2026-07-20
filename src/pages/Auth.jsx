@@ -114,13 +114,15 @@ if (!phone.startsWith('+234')) {
       return
     }
 
-    const { error: profileError } = await supabase.from('users').insert({
-      auth_id: authData.user.id,
-      role,
-      name,
-      phone: formattedPhone,
-      region: role === 'farmer' ? region : null,
-    })
+    const { error: profileError } = await supabase.from('profiles').insert({
+  id: authData.user.id,
+  email,
+  full_name: name,
+  phone_number: formattedPhone,
+  role,
+  location: role === 'farmer' ? region : null,
+  rating: 5.0,
+})
 
     if (profileError) {
       notify.error('Failed to create account')
