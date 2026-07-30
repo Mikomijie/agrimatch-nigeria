@@ -91,18 +91,15 @@ function FarmerDashboard() {
       imageUrl = publicUrlData.publicUrl
     }
 
-  const { error } = await supabase.from('products').insert({
+  const { error } = await supabase.from('listings').insert({
   farmer_id: user.id,
-  product_name: selectedCrop,
-  product_type: selectedCrop,
+  crop_type: selectedCrop,
   quantity: Number(quantity),
-  price: Number(price),
+  price_per_unit: Number(price),
   location,
-  description: freshness,
+  freshness,
   image_url: imageUrl,
-  freshness_status: freshness,
 })
-
     setSubmitting(false)
 
     if (error) {
@@ -121,7 +118,7 @@ function FarmerDashboard() {
   const startEdit = (listing) => {
     setEditingListing(listing.id)
     setEditQuantity(listing.quantity)
-    setEditPrice(listing.price)
+    setEditPrice(listing.price_per_unit)
   }
 
   const cancelEdit = () => {
@@ -132,12 +129,12 @@ function FarmerDashboard() {
 
 const saveEdit = async (listingId) => {
     const { error } = await supabase
-      .from('products')
-      .update({
-        quantity: Number(editQuantity),
-        price: Number(editPrice),
-      })
-      .eq('id', listingId)
+  .from('listings')
+  .update({
+    quantity: Number(editQuantity),
+    price_per_unit: Number(editPrice),
+  })
+  .eq('id', listingId)
 
     if (!error) {
       setMyListings((prev) =>
@@ -153,8 +150,7 @@ const saveEdit = async (listingId) => {
 
   const deleteListing = async (listingId) => {
     setDeletingId(listingId)
-    const { error } = await supabase.from('products').delete().eq('id', listingId)
-
+   const { error } = await supabase.from('listings').delete().eq('id', listingId)
     if (!error) {
       setMyListings((prev) => prev.filter((l) => l.id !== listingId))
       setListingCount((prev) => prev - 1)
@@ -166,10 +162,10 @@ const saveEdit = async (listingId) => {
     async function fetchMyListings() {
       if (!user) return
       const { data } = await supabase
-        .from('products')
-.select('*')
-.eq('farmer_id', user.id)
-        .order('created_at', { ascending: false })
+  .from('listings')
+  .select('*')
+  .eq('farmer_id', user.id)
+  .order('created_at', { ascending: false })
       setMyListings(data || [])
       setListingCount(data?.length || 0)
     }
@@ -639,7 +635,7 @@ const saveEdit = async (listingId) => {
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{listing.crop_type}</p>
                             <p className="text-xs text-gray-600">
-                              {listing.quantity}kg at ₦{Number(listing.price).toLocaleString()}/kg
+                              {listing.quantity}kg at ₦{Number(listing.price_per_unit).toLocaleString()}/kg
                             </p>
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
