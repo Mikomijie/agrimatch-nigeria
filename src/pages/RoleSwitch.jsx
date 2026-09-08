@@ -4,9 +4,9 @@ import { useCurrentUser } from '../lib/useCurrentUser'
 import { useActiveRole } from '../lib/useActiveRole'
 
 const ROLES = [
-  { id: 'farmer', label: 'Farmer', desc: 'List harvests, manage sales' },
-  { id: 'buyer', label: 'Buyer', desc: 'Browse produce, make purchases' },
-  { id: 'transporter', label: 'Transporter', desc: 'Manage deliveries, logistics' }
+  { id: 'farmer', label: 'Farmer', emoji: '🌾', desc: 'List harvests, manage sales' },
+  { id: 'buyer', label: 'Buyer', emoji: '🛒', desc: 'Browse produce, make purchases' },
+  { id: 'transporter', label: 'Transporter', emoji: '🚛', desc: 'Manage deliveries, logistics' },
 ]
 
 function RoleSwitch() {
@@ -14,8 +14,16 @@ function RoleSwitch() {
   const { user, loading } = useCurrentUser()
   const [_, setActiveRole] = useActiveRole()
 
-  if (loading) return <div className="p-10 text-center">Loading...</div>
-  if (!user) return navigate('/auth')
+  if (loading) return (
+    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
+      <p className="text-[var(--color-charcoal)]/60">Loading...</p>
+    </div>
+  )
+
+  if (!user) {
+    navigate('/auth')
+    return null
+  }
 
   const handleSelectRole = (roleId) => {
     setActiveRole(roleId)
@@ -25,20 +33,24 @@ function RoleSwitch() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FAFAF8] to-[#F5F3F0] flex items-center justify-center px-6 py-12">
+    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center px-6 py-12">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
         className="w-full max-w-md text-center"
       >
-        <button
-          onClick={() => navigate('/auth')}
-          className="mb-4 text-sm font-semibold text-gray-600 hover:text-[#1B5E20] transition-colors text-left"
-        >
-          ← Back
-        </button>
-        <h1 className="text-4xl font-bold text-[#1B5E20] mb-3">AgriMatch</h1>
-        <p className="text-gray-600 text-base mb-12">What would you like to do today?</p>
+        <div className="mb-8">
+          <p className="font-[var(--font-heading)] italic text-3xl text-[var(--color-primary)] mb-2">
+            AgriMatch
+          </p>
+          <h1 className="text-2xl font-bold text-[var(--color-charcoal)] mb-2">
+            What would you like to do?
+          </h1>
+          <p className="text-[var(--color-charcoal)]/60 text-sm">
+            Logged in as {user?.full_name}
+          </p>
+        </div>
 
         <div className="space-y-3">
           {ROLES.map((role, i) => (
@@ -50,13 +62,30 @@ function RoleSwitch() {
               transition={{ delay: i * 0.1 }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full p-6 border-2 border-gray-300 rounded-lg hover:border-[#1B5E20] hover:bg-[#1B5E20]/5 transition-all text-left bg-white"
+              className="w-full p-5 border-2 border-black/10 rounded-xl hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-all text-left bg-white shadow-sm"
             >
-              <p className="font-bold text-lg text-gray-900">{role.label}</p>
-              <p className="text-sm text-gray-600 mt-1">{role.desc}</p>
+              <div className="flex items-center gap-4">
+                <span className="text-3xl">{role.emoji}</span>
+                <div>
+                  <p className="font-bold text-lg text-[var(--color-charcoal)]">{role.label}</p>
+                  <p className="text-sm text-[var(--color-charcoal)]/60 mt-0.5">{role.desc}</p>
+                </div>
+              </div>
             </motion.button>
           ))}
         </div>
+
+        <button
+          onClick={async () => {
+            const { createClient } = await import('@supabase/supabase-js')
+            const { supabase } = await import('./lib/supabaseClient')
+            await supabase.auth.signOut()
+            navigate('/')
+          }}
+          className="mt-8 text-sm text-[var(--color-charcoal)]/50 hover:text-[var(--color-charcoal)] transition-colors"
+        >
+          Sign out
+        </button>
       </motion.div>
     </div>
   )
