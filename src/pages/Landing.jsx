@@ -42,6 +42,7 @@ function Counter({ value, suffix = '' }) {
 function Landing() {
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)]">
+      {/* Header */}
       <header className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-primary-dark)] backdrop-blur-sm border-b border-black/10">
         <span className="font-[var(--font-heading)] italic text-2xl text-white">
           AgriMatch
@@ -79,7 +80,7 @@ function Landing() {
             Nigeria's harvest spoils <span className="italic">before it reaches the market.</span>
           </h1>
           <p className="mt-4 text-white/90 text-lg mx-auto">
-            AgriMatch connects Jos farmers directly to buyers — guaranteed pickup, guaranteed price, zero middlemen.
+            AgriMatch connects farmers directly to buyers — guaranteed pickup, guaranteed price, zero middlemen.
           </p>
           <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-8">
             <Link
@@ -95,7 +96,7 @@ function Landing() {
       {/* Stats strip */}
       <section className="bg-[var(--color-primary)] text-white px-6 md:px-10 py-6 md:py-3 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 text-center text-xs md:text-sm tracking-wide">
         <span>40% OF PRODUCE SPOILS BEFORE SALE — WE'RE CUTTING THAT</span>
-        <span>FRESH PRODUCE HARVESTED TODAY IN JOS HUB</span>
+        <span>FRESH PRODUCE HARVESTED TODAY ACROSS NIGERIA</span>
         <span>GUARANTEED PICKUP WITHIN 12 HOURS</span>
       </section>
 
@@ -146,7 +147,7 @@ function Landing() {
               Every route paid, every load tracked.
             </h2>
             <p className="mt-4 text-[var(--color-charcoal)]/80 text-sm leading-relaxed">
-              Join a network of vetted carriers with access to high-demand routes from Jos to urban hubs across Nigeria.
+              Join a network of vetted carriers with access to high-demand routes across Nigeria to urban hubs nationwide.
             </p>
           </motion.div>
         </div>
@@ -171,13 +172,9 @@ function Landing() {
               className="p-8 rounded-lg border border-black/10 hover:shadow-lg transition-shadow group bg-[var(--color-surface)]"
             >
               <div className="w-12 h-12 bg-[var(--color-primary-light)]/40 rounded-lg flex items-center justify-center mb-6 group-hover:bg-[var(--color-primary)] transition-colors">
-                <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-primary-dark)] group-hover:text-white transition-colors">
-                  01
-                </span>
+                <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-primary-dark)] group-hover:text-white transition-colors">01</span>
               </div>
-              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">
-                40% Loss, Eliminated
-              </h3>
+              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">40% Loss, Eliminated</h3>
               <p className="mt-3 text-[var(--color-charcoal)]/70 text-sm leading-relaxed">
                 No middlemen. Farmers get fair prices updated daily based on live market data across Nigeria.
               </p>
@@ -189,15 +186,11 @@ function Landing() {
               className="p-8 rounded-lg border border-black/10 hover:shadow-lg transition-shadow group bg-[var(--color-surface)]"
             >
               <div className="w-12 h-12 bg-[var(--color-secondary-light)]/40 rounded-lg flex items-center justify-center mb-6 group-hover:bg-[var(--color-secondary)] transition-colors">
-                <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-secondary-dark)] group-hover:text-white transition-colors">
-                  02
-                </span>
+                <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-secondary-dark)] group-hover:text-white transition-colors">02</span>
               </div>
-              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">
-                Every Harvest Traced
-              </h3>
+              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">Every Harvest Traced</h3>
               <p className="mt-3 text-[var(--color-charcoal)]/70 text-sm leading-relaxed">
-                Every producer is vetted. Trace every kilogram from Jos farms back to your doorstep.
+                Every producer is vetted. Trace every kilogram from Nigerian farms back to your doorstep.
               </p>
             </motion.div>
 
@@ -207,13 +200,9 @@ function Landing() {
               className="p-8 rounded-lg border border-black/10 hover:shadow-lg transition-shadow group bg-[var(--color-surface)]"
             >
               <div className="w-12 h-12 bg-[var(--color-moss)]/30 rounded-lg flex items-center justify-center mb-6 group-hover:bg-[var(--color-moss)] transition-colors">
-                <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-moss)] group-hover:text-white transition-colors">
-                  03
-                </span>
+                <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-moss)] group-hover:text-white transition-colors">03</span>
               </div>
-              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">
-                12-Hour Guarantee
-              </h3>
+              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)]">12-Hour Guarantee</h3>
               <p className="mt-3 text-[var(--color-charcoal)]/70 text-sm leading-relaxed">
                 Farm to buyer in 12 hours. Coordinated, reliable transport network across Nigeria.
               </p>
@@ -233,7 +222,7 @@ function Landing() {
         <div>
           <Counter value="10" suffix="k+" />
           <p className="text-xs text-[var(--color-charcoal)]/70 mt-1">
-            Verified smallholder farmers in the Jos Hub ecosystem
+            Verified smallholder farmers across Nigeria
           </p>
         </div>
         <div>
@@ -325,16 +314,14 @@ function Landing() {
 
       <footer className="border-t border-black/10 px-6 md:px-10 py-12 text-center bg-[var(--color-background-warm)]">
         <div className="max-w-2xl mx-auto">
-          <p className="font-[var(--font-heading)] text-[var(--color-charcoal)] text-lg">
-            AgriMatch
-          </p>
+          <p className="font-[var(--font-heading)] text-[var(--color-charcoal)] text-lg">AgriMatch</p>
           <div className="my-4 h-px bg-black/10" />
           <p className="text-[var(--color-charcoal)]/70 text-sm leading-relaxed">
             Empowering the backbone of Nigeria's economy through technology that respects the soil.
           </p>
           <div className="my-4 h-px bg-black/10" />
           <p className="text-[var(--color-charcoal)]/50 text-xs tracking-wide">
-            © 2026 AgriMatch · Jos Regional Hub, Plateau State
+            © 2026 AgriMatch · Benin City, Edo State
           </p>
         </div>
       </footer>

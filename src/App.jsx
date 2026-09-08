@@ -8,12 +8,13 @@ import BuyerMarketplace from './pages/BuyerMarketplace'
 import OrderTracking from './pages/OrderTracking'
 import BuyerOrderHistory from './pages/BuyerOrderHistory'
 import TransporterLoadBoard from './pages/TransporterLoadBoard'
+import TransporterRegistration from './pages/TransporterRegistration'
 import RatingsReviews from './pages/RatingsReviews'
 import USSDSimulator from './pages/USSDSimulator'
 import Terms from './pages/Terms'
 import RoleSwitch from './pages/RoleSwitch'
 import Auth from './pages/Auth'
-import TransporterRegistration from './pages/TransporterRegistration'
+import NotFound from './pages/NotFound'
 
 function App() {
   return (
@@ -33,9 +34,10 @@ function App() {
         <Route path="/ussd" element={<USSDSimulator />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/role-switch" element={<RoleSwitch />} />
-        <Route path="/transporter-registration" element={<TransporterRegistration />} />
         <Route path="/payment-callback" element={<PaymentCallback />} />
         <Route path="/bulk-order" element={<BulkOrderRequest />} />
+        <Route path="/transporter-registration" element={<TransporterRegistration />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   )
