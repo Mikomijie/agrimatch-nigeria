@@ -312,7 +312,7 @@ function ProductDetail() {
             whileHover={{ scale: 1.01 }}
             transition={{ duration: 0.3 }}
           >
-            <img src={product.image_url} alt={product.crop_type} className="w-full h-full object-cover" />
+            <img src={product.image_url} alt={product.crop_type} loading="lazy" className="w-full h-full object-cover" />
           </motion.div>
         </motion.div>
 
@@ -373,7 +373,7 @@ function ProductDetail() {
                         <img
                           src={listing.image_url}
                           alt={listing.crop_type}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          loading="lazy" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                         />
                       </div>
                       <div className="p-3">

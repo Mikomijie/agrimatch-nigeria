@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import ScrollToTop from './components/ScrollToTop'
 import ProductDetail from './pages/ProductDetail'
 import BulkOrderRequest from './pages/BulkOrderRequest'
 import PaymentCallback from './pages/PaymentCallback'
@@ -19,6 +20,7 @@ import NotFound from './pages/NotFound'
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/dashboard" element={<FarmerDashboard />} />

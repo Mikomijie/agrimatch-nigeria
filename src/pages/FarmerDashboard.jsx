@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import { isListingExpired } from '../lib/listingHelpers'
+import { notify } from '../lib/notifications'
 import ChatWindow from '../components/ChatWindow'
 import ConversationList from '../components/ConversationList'
 import FarmerOrders from '../components/FarmerOrders'
+import ConfirmModal from '../components/ConfirmModal'
 
 const CROPS = [
   { id: 'Tomatoes', label: 'Tomatoes', image: '/images/produce/tomatoes.jpg' },
@@ -24,13 +26,15 @@ const FRESHNESS_OPTIONS = [
 
 function FarmerDashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, loading: userLoading } = useCurrentUser()
+
   const [selectedCrop, setSelectedCrop] = useState('Tomatoes')
   const [freshness, setFreshness] = useState('Harvested Today')
   const [expectedHarvestDate, setExpectedHarvestDate] = useState('')
   const [quantity, setQuantity] = useState('')
   const [price, setPrice] = useState('')
-  const [location, setLocation] = useState('')
+  const [pickupLocation, setPickupLocation] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
@@ -46,11 +50,13 @@ function FarmerDashboard() {
   const [editQuantity, setEditQuantity] = useState('')
   const [editPrice, setEditPrice] = useState('')
   const [deletingId, setDeletingId] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
   const [newListingId, setNewListingId] = useState(null)
   const [showOrderNotification, setShowOrderNotification] = useState(false)
   const [newOrderMessage, setNewOrderMessage] = useState('')
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [pendingOrders, setPendingOrders] = useState(0)
+  const [isFirstListing, setIsFirstListing] = useState(false)
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
@@ -82,6 +88,7 @@ function FarmerDashboard() {
       setUploading(false)
 
       if (uploadError) {
+        notify.error('Image upload failed: ' + uploadError.message)
         setError(uploadError.message)
         setSubmitting(false)
         return
@@ -101,7 +108,7 @@ function FarmerDashboard() {
         crop_type: selectedCrop,
         quantity: Number(quantity),
         price_per_unit: Number(price),
-        location,
+        location: pickupLocation,
         freshness,
         image_url: imageUrl,
         expected_harvest_date: freshness === 'Future Harvest' ? expectedHarvestDate : null,
@@ -112,13 +119,15 @@ function FarmerDashboard() {
     setSubmitting(false)
 
     if (error) {
+      notify.error('Failed to publish listing')
       setError(error.message)
     } else {
+      notify.success('Listing published! Buyers can see it now.')
       setSuccess(true)
       setNewListingId(newListing.id)
       setQuantity('')
       setPrice('')
-      setLocation('')
+      setPickupLocation('')
       setImageFile(null)
       setImagePreview(null)
       setExpectedHarvestDate('')
@@ -150,7 +159,10 @@ function FarmerDashboard() {
       })
       .eq('id', listingId)
 
-    if (!error) {
+    if (error) {
+      notify.error('Failed to update listing')
+    } else {
+      notify.success('Listing updated!')
       setMyListings((prev) =>
         prev.map((l) =>
           l.id === listingId
@@ -165,11 +177,15 @@ function FarmerDashboard() {
   const deleteListing = async (listingId) => {
     setDeletingId(listingId)
     const { error } = await supabase.from('listings').delete().eq('id', listingId)
-    if (!error) {
+    if (error) {
+      notify.error('Failed to delete listing')
+    } else {
+      notify.success('Listing deleted')
       setMyListings((prev) => prev.filter((l) => l.id !== listingId))
       setListingCount((prev) => prev - 1)
     }
     setDeletingId(null)
+    setConfirmDelete(null)
   }
 
   useEffect(() => {
@@ -183,6 +199,7 @@ function FarmerDashboard() {
         .order('created_at', { ascending: false })
       setMyListings(data || [])
       setListingCount(data?.length || 0)
+      setIsFirstListing(data?.length === 0)
     }
     fetchMyListings()
 
@@ -285,16 +302,10 @@ function FarmerDashboard() {
               AgriMatch
             </Link>
             <nav className="hidden md:flex items-center gap-6 sm:gap-8 text-sm font-medium flex-1 justify-center">
-              <button
-                onClick={() => navigate(-1)}
-                className="text-white/80 hover:text-white transition-colors font-semibold"
-              >
+              <button onClick={() => navigate(-1)} className="text-white/80 hover:text-white transition-colors font-semibold">
                 ← Back
               </button>
-              <button
-                onClick={() => navigate('/role-switch')}
-                className="text-white/80 hover:text-white transition-colors font-semibold"
-              >
+              <button onClick={() => navigate('/role-switch')} className="text-white/80 hover:text-white transition-colors font-semibold">
                 Switch Role
               </button>
               <Link to="/marketplace" className="text-white/80 hover:text-white transition-colors">
@@ -311,9 +322,7 @@ function FarmerDashboard() {
                   </span>
                 )}
               </button>
-              <Link to="/logistics" className="text-white/80 hover:text-white transition-colors">
-                Logistics
-              </Link>
+              <Link to="/logistics" className="text-white/80 hover:text-white transition-colors">Logistics</Link>
               <button
                 onClick={() => navigate('/buyer-orders')}
                 className="relative text-white/80 hover:text-white transition-colors text-sm font-medium"
@@ -327,9 +336,7 @@ function FarmerDashboard() {
               </button>
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
-              <span className="text-xs sm:text-sm text-white/60 hidden sm:inline">
-                {user?.full_name}
-              </span>
+              <span className="text-xs sm:text-sm text-white/60 hidden sm:inline">{user?.full_name}</span>
               <button
                 onClick={async () => {
                   await supabase.auth.signOut()
@@ -345,18 +352,38 @@ function FarmerDashboard() {
 
         {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-          <Link to="/marketplace" className="flex flex-col items-center text-xs text-[var(--color-charcoal)]/70">
+          <Link
+            to="/marketplace"
+            className={`flex flex-col items-center text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
             <span className="text-lg">🛒</span>Market
           </Link>
-          <button onClick={() => setShowChat(true)} className="relative flex flex-col items-center text-xs text-[var(--color-charcoal)]/70">
+          <button
+            onClick={() => setShowChat(true)}
+            className="relative flex flex-col items-center text-xs text-[var(--color-charcoal)]/60"
+          >
             <span className="text-lg">💬</span>Messages
-            {unreadMessages > 0 && <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">{unreadMessages}</span>}
+            {unreadMessages > 0 && (
+              <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {unreadMessages}
+              </span>
+            )}
           </button>
-          <Link to="/buyer-orders" className="relative flex flex-col items-center text-xs text-[var(--color-charcoal)]/70">
+          <Link
+            to="/buyer-orders"
+            className={`relative flex flex-col items-center text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
             <span className="text-lg">📦</span>Orders
-            {pendingOrders > 0 && <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">{pendingOrders}</span>}
+            {pendingOrders > 0 && (
+              <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {pendingOrders}
+              </span>
+            )}
           </Link>
-          <Link to="/logistics" className="flex flex-col items-center text-xs text-[var(--color-charcoal)]/70">
+          <Link
+            to="/logistics"
+            className={`flex flex-col items-center text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
             <span className="text-lg">🚛</span>Logistics
           </Link>
         </nav>
@@ -379,12 +406,38 @@ function FarmerDashboard() {
               </p>
             </motion.div>
 
+            {/* Onboarding tooltip for first-time farmers */}
+            {isFirstListing && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-[var(--color-secondary)]/10 border-2 border-[var(--color-secondary)]/30 rounded-xl p-4 flex items-start gap-3"
+              >
+                <span className="text-2xl flex-shrink-0">👋</span>
+                <div>
+                  <p className="font-bold text-sm text-[var(--color-secondary-dark)]">Welcome to AgriMatch!</p>
+                  <p className="text-xs text-[var(--color-charcoal)]/70 mt-1">
+                    You have no listings yet. Start below — fill in your crop details and click <strong>Publish Listing</strong> to get your first harvest in front of buyers.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
             <form onSubmit={handlePublish} className="space-y-6 sm:space-y-8">
               {/* 1. Crop Selection */}
-              <div>
+              <div className="relative">
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-3 sm:mb-5">
                   1. What are you selling?
                 </label>
+                {isFirstListing && (
+                  <motion.div
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    className="absolute -top-2 -right-2 text-[var(--color-secondary)] text-xl"
+                  >
+                    👆
+                  </motion.div>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
                   {CROPS.map((crop) => (
                     <button
@@ -399,6 +452,7 @@ function FarmerDashboard() {
                     >
                       <div className="aspect-square bg-[var(--color-surface)] overflow-hidden">
                         <img
+                          loading="lazy"
                           src={crop.image}
                           alt={crop.label}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
@@ -423,7 +477,7 @@ function FarmerDashboard() {
                 </label>
                 {imagePreview ? (
                   <div className="relative rounded-lg sm:rounded-xl overflow-hidden border-2 border-[var(--color-primary)]">
-                    <img src={imagePreview} alt="Preview" className="w-full h-40 sm:h-64 object-cover" />
+                    <img loading="lazy" src={imagePreview} alt="Preview" className="w-full h-40 sm:h-64 object-cover" />
                     <button
                       type="button"
                       onClick={() => { setImageFile(null); setImagePreview(null) }}
@@ -451,6 +505,7 @@ function FarmerDashboard() {
                     <input
                       type="number"
                       required
+                      min="1"
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
                       placeholder="0.00"
@@ -467,6 +522,7 @@ function FarmerDashboard() {
                     <input
                       type="number"
                       required
+                      min="1"
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
                       placeholder="0.00"
@@ -485,9 +541,9 @@ function FarmerDashboard() {
                 <input
                   type="text"
                   required
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Jos, Plateau State"
+                  value={pickupLocation}
+                  onChange={(e) => setPickupLocation(e.target.value)}
+                  placeholder="e.g. Benin City, Edo State"
                   className="w-full border-2 border-black/10 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
                 />
               </div>
@@ -585,7 +641,7 @@ function FarmerDashboard() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
-              className="bg-white rounded-lg sm:rounded-xl border-2 border-black/10 p-4 sm:p-6 shadow-sm"
+              className="bg-white rounded-lg sm:rounded-xl border border-black/10 p-4 sm:p-6 shadow-sm"
             >
               <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div className="w-12 sm:w-16 h-12 sm:h-16 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-2xl flex-shrink-0">
@@ -606,7 +662,7 @@ function FarmerDashboard() {
             <FarmerOrders user={user} />
 
             {/* Active Listings */}
-            <div className="bg-white rounded-lg sm:rounded-xl border-2 border-black/10 p-4 sm:p-6 shadow-sm">
+            <div className="bg-white rounded-lg sm:rounded-xl border border-black/10 p-4 sm:p-6 shadow-sm">
               <h2 className="font-[var(--font-heading)] text-base sm:text-lg text-[var(--color-charcoal)] mb-3 sm:mb-4">My Active Listings</h2>
               <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[var(--color-primary-light)]/25 rounded-lg">
                 <p className="text-xs text-[var(--color-charcoal)]/60 uppercase font-bold">Total listings</p>
@@ -614,9 +670,12 @@ function FarmerDashboard() {
               </div>
 
               {myListings.length === 0 ? (
-                <p className="text-xs sm:text-sm text-[var(--color-charcoal)]/50 text-center py-6">
-                  No listings yet. Publish your first harvest above.
-                </p>
+                <div className="text-center py-6">
+                  <p className="text-2xl mb-2">🌱</p>
+                  <p className="text-xs sm:text-sm text-[var(--color-charcoal)]/50">
+                    No listings yet. Publish your first harvest above.
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
                   {myListings.map((listing) => (
@@ -631,7 +690,7 @@ function FarmerDashboard() {
                       {editingListing === listing.id ? (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <img src={listing.image_url} alt={listing.crop_type} className="w-10 h-10 rounded object-cover flex-shrink-0" />
+                            <img loading="lazy" src={listing.image_url} alt={listing.crop_type} className="w-10 h-10 rounded object-cover flex-shrink-0" />
                             <p className="font-semibold text-[var(--color-charcoal)] text-xs sm:text-sm">{listing.crop_type}</p>
                           </div>
                           <div className="flex gap-2">
@@ -667,7 +726,7 @@ function FarmerDashboard() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 sm:gap-3">
-                          <img src={listing.image_url} alt={listing.crop_type} className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover flex-shrink-0" />
+                          <img loading="lazy" src={listing.image_url} alt={listing.crop_type} className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover flex-shrink-0" />
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-[var(--color-charcoal)] text-xs sm:text-sm truncate">
                               {listing.crop_type}
@@ -679,7 +738,7 @@ function FarmerDashboard() {
                               )}
                             </p>
                             <p className="text-xs text-[var(--color-charcoal)]/60">
-                              {listing.quantity}kg at ₦{Number(listing.price_per_unit).toLocaleString()}/kg
+                              {listing.quantity}kg · ₦{Number(listing.price_per_unit).toLocaleString()}/kg
                             </p>
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
@@ -690,7 +749,7 @@ function FarmerDashboard() {
                               Edit
                             </button>
                             <button
-                              onClick={() => deleteListing(listing.id)}
+                              onClick={() => setConfirmDelete(listing.id)}
                               disabled={deletingId === listing.id}
                               className="text-xs font-semibold text-red-600 border border-red-300 px-2 py-1 rounded hover:bg-red-50 transition-all disabled:opacity-50"
                             >
@@ -706,14 +765,14 @@ function FarmerDashboard() {
             </div>
 
             {/* Market Insight */}
-            <div className="bg-white rounded-lg sm:rounded-xl border-2 border-black/10 overflow-hidden shadow-sm">
+            <div className="bg-white rounded-lg sm:rounded-xl border border-black/10 overflow-hidden shadow-sm">
               <div className="aspect-video bg-[var(--color-surface)] overflow-hidden">
-                <img src="/images/market/market-general.jpg" alt="Market insight" className="w-full h-full object-cover" />
+                <img loading="lazy" src="/images/market/market-general.jpg" alt="Market insight" className="w-full h-full object-cover" />
               </div>
               <div className="p-4 sm:p-6">
                 <h3 className="font-[var(--font-heading)] text-[var(--color-charcoal)] mb-2 text-sm sm:text-base">Market Trend</h3>
                 <p className="text-xs sm:text-sm text-[var(--color-charcoal)]/70 leading-relaxed">
-                  Grade-A tomatoes trending upward in Jos Hub. Buyers actively seeking quality produce.
+                  Grade-A tomatoes trending upward across Nigeria. Buyers actively seeking quality produce.
                 </p>
               </div>
             </div>
@@ -750,6 +809,17 @@ function FarmerDashboard() {
         >
           <p className="text-sm sm:text-base font-semibold">{newOrderMessage}</p>
         </motion.div>
+      )}
+
+      {/* Confirm Delete Modal */}
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete Listing?"
+          message="This will permanently remove this listing from the marketplace. Buyers will no longer be able to see it."
+          confirmLabel="Yes, Delete"
+          onConfirm={() => deleteListing(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
 
       {/* Chat Bubble */}

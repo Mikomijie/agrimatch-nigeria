@@ -121,7 +121,7 @@ function TransporterRegistration() {
           transition={{ duration: 0.5 }}
           className="mb-10"
         >
-          <div className="w-16 h-16 bg-[var(--color-primary-light)]/30 rounded-full flex items-center justify-center mb-6">
+          <div loading="lazy" className="w-16 h-16 bg-[var(--color-primary-light)]/30 rounded-full flex items-center justify-center mb-6">
             <span className="text-3xl">🚛</span>
           </div>
           <h1 className="font-[var(--font-heading)] text-4xl sm:text-5xl text-[var(--color-charcoal)] mb-4">

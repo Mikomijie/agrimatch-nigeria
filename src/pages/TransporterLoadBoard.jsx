@@ -86,7 +86,7 @@ function LoadCard({ order, onAccept, onOpenPhotoModal, isMyJob }) {
         <img
           src={order.listings?.image_url}
           alt={order.listings?.crop_type}
-          className="w-full h-full object-cover"
+          loading="lazy" className="w-full h-full object-cover"
         />
         <div className="absolute top-3 left-3 bg-white px-3 py-1.5 rounded-lg text-xs font-bold text-[var(--color-charcoal)]">
           {isMyJob ? order.status : 'Awaiting Pickup'}

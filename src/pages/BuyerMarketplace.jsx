@@ -1,13 +1,15 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import { getRecommended } from '../lib/matching'
 import { isListingExpired } from '../lib/listingHelpers'
+import { notify } from '../lib/notifications'
 import FarmerMap from '../components/FarmerMap'
 import ChatWindow from '../components/ChatWindow'
 import ConversationList from '../components/ConversationList'
+import SkeletonCard from '../components/SkeletonCard'
 
 const CROP_TYPES = ['Tomatoes', 'Peppers', 'Garden Eggs', 'Okra']
 const REGIONS = [
@@ -30,6 +32,7 @@ function ListingCard({ listing, onMessage }) {
     >
       <div className="relative h-40 bg-[var(--color-surface)] overflow-hidden">
         <img
+          loading="lazy"
           src={listing.image_url}
           alt={listing.crop_type}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -45,21 +48,17 @@ function ListingCard({ listing, onMessage }) {
         <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)]">
           {listing.crop_type}
         </h3>
-
         <p className="text-sm text-[var(--color-charcoal)]/60 mt-1">
           {listing.quantity}kg · ₦{Number(listing.price_per_unit).toLocaleString()}/kg
         </p>
-
         <p className="text-xs text-[var(--color-charcoal)]/50 mt-2">
           📍 {listing.location}
         </p>
-
         <div className="mt-3 pt-3 border-t border-black/5">
           <p className="text-xs font-medium text-[var(--color-charcoal)]/80">
             {listing.profiles?.full_name}
           </p>
         </div>
-
         <div className="mt-4 space-y-2">
           <Link
             to={`/product/${listing.id}`}
@@ -81,9 +80,11 @@ function ListingCard({ listing, onMessage }) {
 
 function BuyerMarketplace() {
   const navigate = useNavigate()
-  const { user, loading: userLoading } = useCurrentUser()
+  const location = useLocation()
+  const { user } = useCurrentUser()
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
   const [selectedCrop, setSelectedCrop] = useState('')
   const [selectedLocation, setSelectedLocation] = useState('')
@@ -96,9 +97,11 @@ function BuyerMarketplace() {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [newOrders, setNewOrders] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
+  const [pullStart, setPullStart] = useState(null)
+  const [pulling, setPulling] = useState(false)
 
-  useEffect(() => {
-    async function fetchListings() {
+  const fetchListings = useCallback(async () => {
+    try {
       let query = supabase
         .from('listings')
         .select('*, profiles(full_name)')
@@ -111,6 +114,7 @@ function BuyerMarketplace() {
       const { data, error } = await query
 
       if (error) {
+        notify.error('Failed to load listings')
         setError(error.message)
       } else {
         let filtered = data.filter(
@@ -133,10 +137,19 @@ function BuyerMarketplace() {
         }
 
         setListings(filtered)
+        setError(null)
       }
+    } catch (err) {
+      notify.error('Something went wrong loading listings')
+      setError(err.message)
+    } finally {
       setLoading(false)
+      setRefreshing(false)
     }
+  }, [selectedCrop, selectedLocation, priceRange, searchQuery])
 
+  useEffect(() => {
+    setLoading(true)
     fetchListings()
 
     const listingsChannel = supabase
@@ -148,7 +161,7 @@ function BuyerMarketplace() {
       .subscribe()
 
     return () => supabase.removeChannel(listingsChannel)
-  }, [selectedCrop, selectedLocation, priceRange, searchQuery])
+  }, [fetchListings])
 
   useEffect(() => {
     if (!user) return
@@ -188,6 +201,29 @@ function BuyerMarketplace() {
     return () => { document.body.style.overflow = '' }
   }, [showChat, selectedChat])
 
+  // Pull to refresh
+  const handleTouchStart = (e) => {
+    if (window.scrollY === 0) {
+      setPullStart(e.touches[0].clientY)
+    }
+  }
+
+  const handleTouchMove = (e) => {
+    if (!pullStart) return
+    const diff = e.touches[0].clientY - pullStart
+    if (diff > 60) setPulling(true)
+  }
+
+  const handleTouchEnd = () => {
+    if (pulling) {
+      setRefreshing(true)
+      fetchListings()
+      notify.info('Refreshing listings...')
+    }
+    setPullStart(null)
+    setPulling(false)
+  }
+
   const resetFilters = () => {
     setSelectedCrop('')
     setSelectedLocation('')
@@ -208,13 +244,35 @@ function BuyerMarketplace() {
     : []
 
   return (
-    <div className="min-h-screen bg-[var(--color-background-warm)]">
+    <div
+      className="min-h-screen bg-[var(--color-background-warm)]"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull to refresh indicator */}
+      {pulling && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4">
+          <div className="bg-[var(--color-primary)] text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg">
+            Release to refresh ↓
+          </div>
+        </div>
+      )}
+
+      {refreshing && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4">
+          <div className="bg-[var(--color-primary)] text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg animate-pulse">
+            Refreshing...
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-primary-dark)] backdrop-blur-sm border-b border-black/10">
         <Link to="/" className="font-[var(--font-heading)] italic text-2xl text-white">
           AgriMatch
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
-          <span className="text-white/90">Marketplace</span>
+          <span className="text-white/90 border-b-2 border-white pb-1">Marketplace</span>
           <Link to="/buyer-orders" className="text-white/70 hover:text-white relative transition-colors">
             My Orders
             {newOrders > 0 && (
@@ -246,19 +304,31 @@ function BuyerMarketplace() {
           )}
         </div>
 
-        {/* Mobile bottom nav */}
+        {/* Mobile bottom nav with active states */}
         {user && (
           <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-            <Link to="/dashboard" className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/70">
+            <Link
+              to="/dashboard"
+              className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+            >
               <span className="text-lg">🏠</span>Dashboard
             </Link>
-            <Link to="/buyer-orders" className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/70">
+            <Link
+              to="/buyer-orders"
+              className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+            >
               <span className="text-lg">📦</span>Orders
             </Link>
-            <Link to="/logistics" className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/70">
+            <Link
+              to="/logistics"
+              className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+            >
               <span className="text-lg">🚛</span>Logistics
             </Link>
-            <button onClick={() => navigate('/role-switch')} className="flex flex-col items-center gap-1 text-xs text-[var(--color-primary)]">
+            <button
+              onClick={() => navigate('/role-switch')}
+              className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
+            >
               <span className="text-lg">🔄</span>Switch
             </button>
           </nav>
@@ -396,16 +466,46 @@ function BuyerMarketplace() {
           </motion.aside>
 
           <div className="md:col-span-3">
-            {loading && <p className="text-center text-[var(--color-charcoal)]/60 py-12">Loading listings...</p>}
-            {error && <p className="text-center text-red-500 py-12">Error: {error}</p>}
+            {/* Skeleton loading */}
+            {loading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
+            )}
 
-            {!loading && !error && listings.length === 0 && (
+            {/* Error state */}
+            {!loading && error && (
               <div className="text-center py-12">
-                <p className="text-[var(--color-charcoal)]/60 mb-4">
-                  {searchQuery ? `No listings found for "${searchQuery}"` : 'No listings match your filters.'}
+                <p className="text-4xl mb-4">⚠️</p>
+                <p className="text-[var(--color-charcoal)]/60 mb-4">Failed to load listings.</p>
+                <button
+                  onClick={() => { setLoading(true); fetchListings() }}
+                  className="text-[var(--color-primary)] font-semibold underline hover:no-underline"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!loading && !error && listings.length === 0 && (
+              <div className="text-center py-16">
+                <p className="text-5xl mb-4">🌾</p>
+                <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)] mb-2">
+                  No produce found
+                </h3>
+                <p className="text-[var(--color-charcoal)]/60 text-sm mb-6">
+                  {searchQuery
+                    ? `No listings found for "${searchQuery}"`
+                    : 'No listings match your filters right now.'}
                 </p>
-                <button onClick={resetFilters} className="text-[var(--color-primary)] font-medium hover:underline">
-                  Clear filters
+                <button
+                  onClick={resetFilters}
+                  className="bg-[var(--color-primary)] text-white px-6 py-2.5 rounded-lg font-semibold hover:brightness-95 transition-all"
+                >
+                  Clear Filters
                 </button>
               </div>
             )}
@@ -419,7 +519,7 @@ function BuyerMarketplace() {
                 {recommended.length > 0 && (
                   <div className="mb-8">
                     <h2 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)] mb-4">
-                      Recommended for You
+                      ✨ Recommended for You
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {recommended.map((listing) => (
@@ -455,7 +555,7 @@ function BuyerMarketplace() {
             Empowering the backbone of Nigeria's economy through technology that respects the soil.
           </p>
           <p className="text-[var(--color-charcoal)]/40 text-xs tracking-wide">
-            © 2026 AgriMatch · Jos Regional Hub, Plateau State
+            © 2026 AgriMatch · Benin City, Edo State
           </p>
         </div>
       </footer>
