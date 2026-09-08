@@ -114,14 +114,13 @@ if (!phone.startsWith('+234')) {
       return
     }
 
-    const { error: profileError } = await supabase.from('profiles').insert({
+   const { error: profileError } = await supabase.from('profiles').insert({
   id: authData.user.id,
   email,
   full_name: name,
-  phone_number: formattedPhone,
+  phone: formattedPhone,
   role,
-  location: role === 'farmer' ? region : null,
-  rating: 5.0,
+  region: region || null,
 })
 
     if (profileError) {

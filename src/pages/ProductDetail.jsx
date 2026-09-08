@@ -20,8 +20,8 @@ function ProductDetail() {
   useEffect(() => {
     async function fetchProduct() {
       const { data, error } = await supabase
-        .from('products')
-        .select('*, farmer_id, profiles(full_name, rating)')
+        .from('listings')
+        .select('*, farmer_id, profiles(full_name)')
         .eq('id', id)
         .single()
 
@@ -47,7 +47,7 @@ function ProductDetail() {
     </div>
   )
 
-  const subtotal = quantity * product.price
+  const subtotal = quantity * product.price_per_unit
   const logisticsFee = 5000
   const total = subtotal + logisticsFee
 
@@ -60,11 +60,11 @@ function ProductDetail() {
     customer: {
       email: user?.email || 'buyer@agrimatch.com',
       phonenumber: user?.phone || '08000000000',
-      name: user?.name || 'AgriMatch Buyer',
+      name: user?.full_name || 'AgriMatch Buyer',
     },
     customizations: {
-      title: `AgriMatch - ${product.product_name}`,
-      description: `${quantity}kg of ${product.product_name} from ${product.profiles?.full_name}`,
+      title: `AgriMatch - ${product.crop_type}`,
+      description: `${quantity}kg of ${product.crop_type} from ${product.profiles?.full_name}`,
     },
   }
 
@@ -77,14 +77,12 @@ function ProductDetail() {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          product_id: product.id,
+          listing_id: product.id,
           buyer_id: user.id,
           farmer_id: product.farmer_id,
           quantity: quantity,
           total_price: total,
-          logistics_fee: 5000,
-          payment_status: 'processing',
-          delivery_status: 'pending',
+          status: 'pending',
         })
         .select()
         .single()
@@ -99,15 +97,11 @@ function ProductDetail() {
 
       handleFlutterPayment({
         onSuccess: async (response) => {
-          console.log('Payment successful:', response)
-
           const { error: updateError } = await supabase
             .from('orders')
             .update({
-              payment_status: 'paid',
-              transaction_id: response.transaction_id,
-              payment_date: new Date().toISOString(),
-              delivery_status: 'confirmed',
+              status: 'confirmed',
+              payment_ref: response.transaction_id,
             })
             .eq('id', orderData.id)
 
@@ -125,7 +119,6 @@ function ProductDetail() {
           }, 1500)
         },
         onClose: () => {
-          console.log('Payment modal closed')
           setPaymentProcessing(false)
           if (orderId) {
             navigate(`/tracking/${orderId}`)
@@ -170,7 +163,7 @@ function ProductDetail() {
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
               <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">
-                {user?.name}
+                {user?.full_name}
               </span>
               <button
                 onClick={async () => {
@@ -191,13 +184,13 @@ function ProductDetail() {
           <div>
             <p className="text-xs sm:text-sm font-bold tracking-wider text-gray-600 uppercase mb-3 sm:mb-4">
               <span className="w-2 h-2 rounded-full bg-[#1B5E20] inline-block mr-2 animate-pulse" />
-              Fresh
+              {product.freshness}
             </p>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-4 sm:mb-6">
-              {product.product_name}
+              {product.crop_type}
             </h1>
             <p className="text-base sm:text-lg text-gray-600 max-w-md leading-relaxed">
-              {product.description || 'Premium quality produce directly from verified farmers across Nigeria.'}
+              Premium quality produce directly from verified farmers across Nigeria.
             </p>
 
             <div className="grid grid-cols-2 gap-6 mt-8 sm:mt-10">
@@ -211,18 +204,18 @@ function ProductDetail() {
               </div>
               <div>
                 <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-2">Price per kg</p>
-                <p className="text-2xl sm:text-3xl font-bold text-gray-900">₦{Number(product.price).toLocaleString()}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">₦{Number(product.price_per_unit).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-2">Farmer Rating</p>
-                <p className="text-2xl sm:text-3xl font-bold text-gray-900">★ {product.profiles?.rating || 5}</p>
+                <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-2">Freshness</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">{product.freshness}</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="rounded-xl sm:rounded-2xl overflow-hidden border-2 border-gray-200 shadow-sm">
-              <img src={product.image_url} alt={product.product_name} className="w-full h-64 sm:h-80 object-cover" />
+              <img src={product.image_url} alt={product.crop_type} className="w-full h-64 sm:h-80 object-cover" />
             </div>
 
             <div className="bg-white rounded-lg sm:rounded-xl border-2 border-gray-200 p-4 sm:p-6 shadow-sm">
@@ -233,7 +226,7 @@ function ProductDetail() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 text-base">{product.profiles?.full_name}</h3>
-                  <p className="text-sm text-gray-600">★ {product.profiles?.rating || 5} rating</p>
+                  <p className="text-sm text-gray-500">Verified Farmer</p>
                 </div>
               </div>
             </div>

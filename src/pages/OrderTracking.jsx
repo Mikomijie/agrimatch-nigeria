@@ -26,7 +26,7 @@ function OrderTracking() {
 
       const { data, error } = await supabase
         .from('orders')
-        .select('*, listings(crop_type, location, quantity, image_url, users(name))')
+        .select('*, listings(crop_type, location, quantity, image_url, profiles(full_name))')
         .eq('id', orderId)
         .single()
 
@@ -54,7 +54,6 @@ function OrderTracking() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAFAF8] to-[#F5F3F0]">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
           <div className="flex items-center justify-between gap-4">
@@ -78,7 +77,6 @@ function OrderTracking() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12">
-        {/* Header Info */}
         <div className="mb-10 sm:mb-12">
           <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-3">Order #{order.id.slice(0, 8).toUpperCase()}</p>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -87,7 +85,7 @@ function OrderTracking() {
                 Tracking your <span className="text-[#2E7D32]">harvest.</span>
               </h1>
               <p className="text-base sm:text-lg text-gray-600 max-w-lg">
-                Your order of {order.quantity}kg {order.listings?.crop_type} from {order.listings?.users?.name} is currently {order.status === 'delivered' ? 'delivered.' : 'being processed.'}
+                Your order of {order.quantity}kg {order.listings?.crop_type} from {order.listings?.profiles?.full_name} is currently {order.status === 'delivered' ? 'delivered.' : 'being processed.'}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -98,7 +96,6 @@ function OrderTracking() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 sm:gap-10 lg:gap-12">
-          {/* Timeline */}
           <div className="md:col-span-2 space-y-6 relative">
             <div className="absolute left-[15px] top-0 bottom-0 w-px bg-gray-200" />
             {STATUS_STEPS.map((step, i) => {
@@ -127,14 +124,13 @@ function OrderTracking() {
             })}
           </div>
 
-          {/* Shipment Details */}
           <div className="bg-white border-2 border-gray-200 rounded-lg sm:rounded-xl p-6 shadow-sm">
             <h2 className="font-bold text-xl text-gray-900 mb-6">Shipment Details</h2>
 
             <div className="space-y-6">
               <div>
                 <p className="text-xs font-bold tracking-wider text-gray-600 uppercase mb-2">Farmer</p>
-                <p className="font-bold text-lg text-gray-900">{order.listings?.users?.name}</p>
+                <p className="font-bold text-lg text-gray-900">{order.listings?.profiles?.full_name}</p>
               </div>
 
               <div>
@@ -182,7 +178,6 @@ function OrderTracking() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-gray-200 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-gray-600 mt-12 sm:mt-16">
         <p className="font-bold text-gray-900 mb-2">AgriMatch</p>
         <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>

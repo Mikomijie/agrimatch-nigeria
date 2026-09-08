@@ -16,13 +16,13 @@ const REGIONS = [
   'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun',
   'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara'
 ]
+
 function BuyerMarketplace() {
   const { user, loading: userLoading } = useCurrentUser()
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Filter states
   const [selectedCrop, setSelectedCrop] = useState('')
   const [selectedLocation, setSelectedLocation] = useState('')
   const [priceRange, setPriceRange] = useState([0, 500000])
@@ -34,16 +34,16 @@ function BuyerMarketplace() {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [newOrders, setNewOrders] = useState(0)
 
-  // Fetch listings with filters
   useEffect(() => {
     async function fetchListings() {
       let query = supabase
-  .from('products')
-  .select('*, farmer_id, profiles(full_name, rating)')
-  .order('created_at', { ascending: false })
+        .from('listings')
+        .select('*, farmer_id, profiles(full_name)')
+        .eq('active', true)
+        .order('created_at', { ascending: false })
 
       if (selectedCrop) {
-        query = query.eq('product_type', selectedCrop)
+        query = query.eq('crop_type', selectedCrop)
       }
 
       if (selectedLocation) {
@@ -57,8 +57,8 @@ function BuyerMarketplace() {
       } else {
         const filtered = data.filter(
           (listing) =>
-            Number(listing.price) >= priceRange[0] &&
-Number(listing.price) <= priceRange[1]
+            Number(listing.price_per_unit) >= priceRange[0] &&
+            Number(listing.price_per_unit) <= priceRange[1]
         )
         setListings(filtered)
       }
@@ -145,7 +145,7 @@ Number(listing.price) <= priceRange[1]
           </Link>
         </nav>
         <div className="flex items-center gap-3">
-          {user && <span className="text-xs text-gray-400 hidden sm:inline">Logged in as {user?.name}</span>}
+          {user && <span className="text-xs text-gray-400 hidden sm:inline">Logged in as {user?.full_name}</span>}
           {user && (
             <button
               onClick={async () => {
@@ -212,93 +212,66 @@ Number(listing.price) <= priceRange[1]
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 sm:gap-8">
           {/* Filters Sidebar */}
           <motion.aside
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className={`${
-              showFilters ? 'block' : 'hidden'
-            } md:block md:col-span-1 space-y-6`}
+            initial={false}
+            animate={{ height: showFilters || window.innerWidth >= 768 ? 'auto' : 0 }}
+            className="md:col-span-1 overflow-hidden md:overflow-visible"
           >
-            <div className="md:hidden flex justify-between items-center mb-4">
-              <h2 className="font-[var(--font-heading)] text-lg">Filters</h2>
-              <button
-                onClick={() => setShowFilters(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="border border-gray-200 rounded-lg p-5 space-y-5">
-              {/* Crop Type Filter */}
+            <div className="space-y-6 pb-4">
               <div>
-                <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  Crop Type
-                </label>
-                <select
-                  value={selectedCrop}
-                  onChange={(e) => setSelectedCrop(e.target.value)}
-                  className="mt-2 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 transition-all"
-                >
-                  <option value="">All Crops</option>
+                <h3 className="text-xs font-bold tracking-wider text-gray-500 uppercase mb-3">Crop Type</h3>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setSelectedCrop('')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                      !selectedCrop ? 'bg-[var(--color-primary)] text-white' : 'hover:bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    All Crops
+                  </button>
                   {CROP_TYPES.map((crop) => (
-                    <option key={crop} value={crop}>
+                    <button
+                      key={crop}
+                      onClick={() => setSelectedCrop(crop)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                        selectedCrop === crop ? 'bg-[var(--color-primary)] text-white' : 'hover:bg-gray-100 text-gray-700'
+                      }`}
+                    >
                       {crop}
-                    </option>
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
 
-              {/* Location Filter */}
               <div>
-                <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  Location
-                </label>
+                <h3 className="text-xs font-bold tracking-wider text-gray-500 uppercase mb-3">Location</h3>
                 <select
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="mt-2 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 transition-all"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[var(--color-primary)]"
                 >
                   <option value="">All Locations</option>
-                  {REGIONS.map((region) => (
-                    <option key={region} value={region}>
-                      {region}
-                    </option>
+                  {REGIONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Price Range Filter */}
               <div>
-                <label className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  Price per KG: ₦{priceRange[0].toLocaleString()} - ₦{priceRange[1].toLocaleString()}
-                </label>
-                <div className="mt-3 space-y-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="500000"
-                    step="1000"
-                    value={priceRange[0]}
-                    onChange={(e) =>
-                      setPriceRange([Number(e.target.value), priceRange[1]])
-                    }
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max="500000"
-                    step="1000"
-                    value={priceRange[1]}
-                    onChange={(e) =>
-                      setPriceRange([priceRange[0], Number(e.target.value)])
-                    }
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
-                  />
-                </div>
+                <h3 className="text-xs font-bold tracking-wider text-gray-500 uppercase mb-3">
+                  Max Price: ₦{priceRange[1].toLocaleString()}/kg
+                </h3>
+                <input
+                  type="range"
+                  min="0"
+                  max="500000"
+                  step="1000"
+                  value={priceRange[1]}
+                  onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
+                />
               </div>
 
               {activeFilterCount > 0 && (
@@ -345,34 +318,30 @@ Number(listing.price) <= priceRange[1]
                     <div className="relative h-40 bg-gray-100 overflow-hidden">
                       <img
                         src={listing.image_url}
-                        alt={listing.product_name}
+                        alt={listing.crop_type}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                     </div>
 
                     <div className="p-4">
                       <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)]">
-                        {listing.product_name}
+                        {listing.crop_type}
                       </h3>
 
                       <p className="text-sm text-gray-600 mt-1">
-                        {listing.quantity}kg · ₦{Number(listing.price).toLocaleString()}/kg
+                        {listing.quantity}kg · ₦{Number(listing.price_per_unit).toLocaleString()}/kg
                       </p>
                       <p className="text-xs text-gray-500 mt-2">
                         {listing.location}
                       </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {listing.freshness}
+                      </p>
 
-                      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-medium text-gray-700">
-  {listing.profiles?.full_name}
-</p>
-{listing.profiles?.rating && (
-  <p className="text-xs text-yellow-600">
-    ⭐ {listing.profiles?.rating.toFixed(1)}
-  </p>
-)}
-                        </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs font-medium text-gray-700">
+                          {listing.profiles?.full_name}
+                        </p>
                       </div>
 
                       <div className="mt-4 space-y-2">
@@ -402,7 +371,6 @@ Number(listing.price) <= priceRange[1]
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-gray-200 px-6 md:px-10 py-12 text-center mt-16">
         <div className="max-w-2xl mx-auto">
           <p className="font-[var(--font-heading)] text-[var(--color-charcoal)] text-lg">AgriMatch</p>

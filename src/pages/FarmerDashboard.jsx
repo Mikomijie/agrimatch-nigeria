@@ -309,7 +309,7 @@ const saveEdit = async (listingId) => {
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
               <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">
-                {user?.name}
+                {user?.full_name}
               </span>
               <button
                 onClick={async () => {
@@ -549,10 +549,10 @@ const saveEdit = async (listingId) => {
             <div className="bg-white rounded-lg sm:rounded-xl border-2 border-gray-200 p-4 sm:p-6 shadow-sm">
               <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div className="w-12 sm:w-16 h-12 sm:h-16 bg-[#1B5E20] rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-2xl flex-shrink-0">
-                  {user?.name?.charAt(0).toUpperCase()}
+                  {user?.full_name?.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">{user?.name}</h3>
+                  <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">{user?.full_name}</h3>
                   <p className="text-xs text-gray-500 truncate">{user?.phone}</p>
                 </div>
               </div>

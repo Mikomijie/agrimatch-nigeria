@@ -4,15 +4,15 @@ import { supabase } from '../lib/supabaseClient'
 import { notify } from '../lib/notifications'
 
 function ReviewModal({ order, buyer, farmerName, onClose, onSuccess }) {
-  const [rating, setRating] = useState(0)
-  const [comment, setComment] = useState('')
+  const [stars, setStars] = useState(0)
+  const [review, setReview] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    if (rating === 0) {
+
+    if (stars === 0) {
       setError('Please select a rating')
       return
     }
@@ -20,14 +20,13 @@ function ReviewModal({ order, buyer, farmerName, onClose, onSuccess }) {
     setSubmitting(true)
     setError(null)
 
-    // Get farmer_id from order
     const { data: orderData } = await supabase
       .from('orders')
-      .select('*, listings(farmer_id)')
+      .select('farmer_id')
       .eq('id', order.id)
       .single()
 
-    const farmer_id = orderData?.listings?.farmer_id
+    const farmer_id = orderData?.farmer_id
 
     if (!farmer_id) {
       setError('Could not find farmer information')
@@ -35,12 +34,12 @@ function ReviewModal({ order, buyer, farmerName, onClose, onSuccess }) {
       return
     }
 
-    // Insert review
-    const { error: reviewError } = await supabase.from('reviews').insert({
-      reviewer_id: buyer.id,
-      reviewed_id: farmer_id,
-      rating,
-      comment: comment || null,
+    const { error: reviewError } = await supabase.from('ratings').insert({
+      order_id: order.id,
+      buyer_id: buyer.id,
+      farmer_id: farmer_id,
+      stars: stars,
+      review: review || null,
     })
 
     setSubmitting(false)
@@ -76,7 +75,6 @@ function ReviewModal({ order, buyer, farmerName, onClose, onSuccess }) {
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-          {/* Star Rating */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase">Rating</label>
             <div className="mt-3 flex gap-2">
@@ -84,30 +82,29 @@ function ReviewModal({ order, buyer, farmerName, onClose, onSuccess }) {
                 <button
                   key={star}
                   type="button"
-                  onClick={() => setRating(star)}
+                  onClick={() => setStars(star)}
                   className={`text-4xl transition-all ${
-                    rating >= star ? 'text-yellow-400' : 'text-gray-300'
+                    stars >= star ? 'text-yellow-400' : 'text-gray-300'
                   } hover:scale-110`}
                 >
                   ★
                 </button>
               ))}
             </div>
-            {rating > 0 && (
-              <p className="mt-2 text-sm text-gray-600">{rating} out of 5 stars</p>
+            {stars > 0 && (
+              <p className="mt-2 text-sm text-gray-600">{stars} out of 5 stars</p>
             )}
           </div>
 
-          {/* Comment */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase">
               Comment (Optional)
             </label>
             <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              value={review}
+              onChange={(e) => setReview(e.target.value)}
               placeholder="Share your feedback..."
-              className="mt-2 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 transition-all resize-none h-20"
+              className="mt-2 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B5E20]/40 transition-all resize-none h-20"
             />
           </div>
 
@@ -115,7 +112,6 @@ function ReviewModal({ order, buyer, farmerName, onClose, onSuccess }) {
             <p className="text-sm text-red-500 bg-red-50 p-3 rounded-md">{error}</p>
           )}
 
-          {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"
@@ -127,7 +123,7 @@ function ReviewModal({ order, buyer, farmerName, onClose, onSuccess }) {
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 bg-[var(--color-primary)] text-white py-2 rounded-md font-medium hover:brightness-95 transition-all disabled:opacity-60"
+              className="flex-1 bg-[#1B5E20] text-white py-2 rounded-md font-medium hover:brightness-95 transition-all disabled:opacity-60"
             >
               {submitting ? 'Submitting...' : 'Submit Review'}
             </button>

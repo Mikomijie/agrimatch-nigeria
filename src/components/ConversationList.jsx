@@ -10,6 +10,7 @@ function ConversationList({ currentUser, onSelectConversation, onClose }) {
   }, [currentUser])
 
   const fetchConversations = async () => {
+    if (!currentUser?.id) return
     try {
       setLoading(true)
       const { data, error } = await supabase
@@ -19,13 +20,7 @@ function ConversationList({ currentUser, onSelectConversation, onClose }) {
         .order('created_at', { ascending: false })
         .limit(100)
 
-      if (error) {
-        setConversations([])
-        setLoading(false)
-        return
-      }
-
-      if (!data || data.length === 0) {
+      if (error || !data || data.length === 0) {
         setConversations([])
         setLoading(false)
         return
@@ -36,11 +31,11 @@ function ConversationList({ currentUser, onSelectConversation, onClose }) {
       ))]
 
       const { data: partners } = await supabase
-        .from('users')
-        .select('id, name')
+        .from('profiles')
+        .select('id, full_name')
         .in('id', partnerIds)
 
-      const partnerMap = Object.fromEntries((partners || []).map(p => [p.id, p.name]))
+      const partnerMap = Object.fromEntries((partners || []).map(p => [p.id, p.full_name]))
 
       const grouped = {}
       for (const msg of data) {
@@ -65,7 +60,6 @@ function ConversationList({ currentUser, onSelectConversation, onClose }) {
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg overflow-hidden shadow-xl">
-      {/* Header */}
       <div className="bg-gradient-to-r from-[#2E7D32] to-[#1B5E20] text-white p-4 flex items-center justify-between flex-shrink-0">
         <h2 className="font-bold text-lg">Messages</h2>
         {onClose && (
@@ -78,7 +72,6 @@ function ConversationList({ currentUser, onSelectConversation, onClose }) {
         )}
       </div>
 
-      {/* Conversations */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <p className="text-center text-gray-500 text-sm p-4">Loading...</p>

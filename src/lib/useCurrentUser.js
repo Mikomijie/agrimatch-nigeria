@@ -14,11 +14,12 @@ export function useCurrentUser() {
         setLoading(false)
         return
       }
-const { data: profile } = await supabase
-  .from('users')
-  .select('*')
-  .eq('auth_id', authUser.id)
-  .single()
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
 
       setUser(profile || authUser)
       setLoading(false)

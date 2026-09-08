@@ -11,7 +11,7 @@ L.Icon.Default.mergeOptions({
 })
 
 function FarmerMap({ listings }) {
-  const center = [7.5833, -1.9333]
+  const center = [9.8965, 8.8583] // Jos, Plateau State, Nigeria
 
   return (
     <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height: '500px' }}>
@@ -27,18 +27,18 @@ function FarmerMap({ listings }) {
               <Popup className="farmer-popup">
                 <div className="w-56 sm:w-64">
                   <h3 className="font-bold text-base sm:text-lg text-gray-900">{listing.crop_type}</h3>
-                  
+
                   <div className="mt-2 space-y-1 text-xs sm:text-sm text-gray-700">
                     <p><span className="font-semibold">Location:</span> {listing.location}</p>
                     <p><span className="font-semibold">Available:</span> {listing.quantity}kg</p>
-                    <p><span className="font-semibold">Price:</span> GH₵{listing.price_per_unit}/kg</p>
+                    <p><span className="font-semibold">Price:</span> ₦{Number(listing.price_per_unit).toLocaleString()}/kg</p>
+                    <p><span className="font-semibold">Freshness:</span> {listing.freshness}</p>
                   </div>
 
                   <div className="mt-3 pt-3 border-t border-gray-200">
-                    <p className="text-xs sm:text-sm font-medium text-gray-900">{listing.users?.name}</p>
-                    {listing.users?.rating && (
-                      <p className="text-xs text-yellow-600">Rating: {listing.users.rating.toFixed(1)}</p>
-                    )}
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">
+                      {listing.profiles?.full_name}
+                    </p>
                   </div>
 
                   <Link

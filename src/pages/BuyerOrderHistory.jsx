@@ -14,25 +14,24 @@ function BuyerOrderHistory() {
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState(null)
 
-  useEffect(() => {
-    async function fetchMyOrders() {
-      if (!user) return
+  const fetchOrders = async () => {
+    if (!user) return
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*, listings(crop_type, location, quantity, image_url, profiles(full_name))')
+      .eq('buyer_id', user.id)
+      .order('created_at', { ascending: false })
 
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, listings(crop_type, location, quantity, image_url, users(name))')
-        .eq('buyer_id', user.id)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        setError(error.message)
-      } else {
-        setOrders(data || [])
-      }
-      setLoading(false)
+    if (error) {
+      setError(error.message)
+    } else {
+      setOrders(data || [])
     }
+    setLoading(false)
+  }
 
-    fetchMyOrders()
+  useEffect(() => {
+    fetchOrders()
   }, [user])
 
   if (userLoading) return (
@@ -50,7 +49,6 @@ function BuyerOrderHistory() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAFAF8] to-[#F5F3F0]">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
           <div className="flex items-center justify-between gap-4">
@@ -74,7 +72,7 @@ function BuyerOrderHistory() {
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
               <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">
-                {user?.name}
+                {user?.full_name}
               </span>
               <button
                 onClick={async () => {
@@ -131,7 +129,7 @@ function BuyerOrderHistory() {
                     <div className="min-w-0">
                       <h3 className="font-bold text-lg text-gray-900 truncate">{order.listings?.crop_type}</h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        {order.quantity}kg · ₦{Number(order.total_price).toLocaleString()} · From {order.listings?.users?.name}
+                        {order.quantity}kg · ₦{Number(order.total_price).toLocaleString()} · From {order.listings?.profiles?.full_name}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Order #{order.id.slice(0, 8).toUpperCase()}
@@ -141,64 +139,58 @@ function BuyerOrderHistory() {
 
                   <div className="text-right flex-shrink-0">
                     <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
-                      <span className="text-sm font-medium capitalize">{order.status}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Link
-                        to={`/tracking/${order.id}`}
-                        className="text-xs text-[var(--color-primary)] underline hover:no-underline"
-                      >
-                        View details
-                      </Link>
-                      {order.status === 'delivered' && (
-                        <button
-                          onClick={() => {
-                            setSelectedOrder(order)
-                            setShowReviewModal(true)
-                          }}
-                          className="text-xs text-[var(--color-secondary)] underline hover:no-underline"
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#1B5E20] animate-pulse" />
+                        <span className="text-sm font-medium capitalize">{order.status}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link
+                          to={`/tracking/${order.id}`}
+                          className="text-xs text-[#1B5E20] underline hover:no-underline"
                         >
-                          Leave review
-                        </button>
-                      )}
+                          View details
+                        </Link>
+                        {order.status === 'delivered' && (
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order)
+                              setShowReviewModal(true)
+                            }}
+                            className="text-xs text-[#2E7D32] underline hover:no-underline"
+                          >
+                            Leave review
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
                   </div>
                 </div>
               </motion.div>
             ))}
           </div>
         )}
+
         {showReviewModal && selectedOrder && (
-        <ReviewModal
-          order={selectedOrder}
-          buyer={user}
-          farmerName={selectedOrder.listings?.users?.name}
-          onClose={() => {
-            setShowReviewModal(false)
-            setSelectedOrder(null)
-          }}
-          onSuccess={async () => {
-            setShowReviewModal(false)
-            setSelectedOrder(null)
-            // Refresh orders to remove review button
-            const { data: newOrders } = await supabase
-              .from('orders')
-              .select('*, listings(crop_type, location, quantity, image_url, users(name))')
-              .eq('buyer_id', user.id)
-              .order('created_at', { ascending: false })
-            setOrders(newOrders || [])
-          }}
-        />
-      )}
+          <ReviewModal
+            order={selectedOrder}
+            buyer={user}
+            farmerName={selectedOrder.listings?.profiles?.full_name}
+            onClose={() => {
+              setShowReviewModal(false)
+              setSelectedOrder(null)
+            }}
+            onSuccess={async () => {
+              setShowReviewModal(false)
+              setSelectedOrder(null)
+              fetchOrders()
+            }}
+          />
+        )}
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-gray-200 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-gray-600 mt-12 sm:mt-16">
         <p className="font-bold text-gray-900 mb-2">AgriMatch</p>
-       <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>
+        <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>
       </footer>
     </div>
   )

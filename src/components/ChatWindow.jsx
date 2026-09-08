@@ -10,25 +10,12 @@ function ChatWindow({ conversationWith, conversationName, currentUser, orderId, 
   const [loading, setLoading] = useState(true)
   const messagesEndRef = useRef(null)
 
-  if (!currentUser || !currentUser.id) {
-    return (
-      <div className="flex items-center justify-center h-full bg-white rounded-lg">
-        <p className="text-gray-500">Please log in to chat</p>
-      </div>
-    )
-  }
-
-  useEffect(() => {
-    fetchMessages()
-    const interval = setInterval(fetchMessages, 1500)
-    return () => clearInterval(interval)
-  }, [conversationWith])
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   const fetchMessages = async () => {
+    if (!currentUser?.id || !conversationWith) return
     try {
       const { data, error } = await supabase
         .from('messages')
@@ -48,7 +35,6 @@ function ChatWindow({ conversationWith, conversationName, currentUser, orderId, 
       setLoading(false)
       setTimeout(scrollToBottom, 100)
 
-      // Mark messages as read
       await supabase
         .from('messages')
         .update({ read: true })
@@ -61,6 +47,23 @@ function ChatWindow({ conversationWith, conversationName, currentUser, orderId, 
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!currentUser?.id || !conversationWith) return
+
+    fetchMessages()
+
+    const channel = supabase
+      .channel(`chat-${currentUser.id}-${conversationWith}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => fetchMessages()
+      )
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [conversationWith, currentUser?.id])
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -83,15 +86,21 @@ function ChatWindow({ conversationWith, conversationName, currentUser, orderId, 
         console.error('Send error:', error)
         notify.error('Failed to send message')
       } else {
-        notify.success('Message sent!')
         setInputValue('')
-        await fetchMessages()
       }
     } catch (err) {
       setSending(false)
       console.error('Send exception:', err)
       notify.error('Error sending message')
     }
+  }
+
+  if (!currentUser || !currentUser.id) {
+    return (
+      <div className="flex items-center justify-center h-full bg-white rounded-lg">
+        <p className="text-gray-500">Please log in to chat</p>
+      </div>
+    )
   }
 
   return (
@@ -101,7 +110,6 @@ function ChatWindow({ conversationWith, conversationName, currentUser, orderId, 
       exit={{ opacity: 0, scale: 0.95 }}
       className="flex flex-col h-full bg-white rounded-lg shadow-xl overflow-hidden"
     >
-      {/* Header */}
       <div className="bg-gradient-to-r from-[#2E7D32] to-[#1B5E20] text-white p-4 flex items-center justify-between">
         <div>
           <h3 className="font-[var(--font-heading)] text-lg font-bold">
@@ -117,7 +125,6 @@ function ChatWindow({ conversationWith, conversationName, currentUser, orderId, 
         </button>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-white to-[#F9F9F9]">
         <AnimatePresence>
           {loading ? (
@@ -160,7 +167,6 @@ function ChatWindow({ conversationWith, conversationName, currentUser, orderId, 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <form onSubmit={handleSend} className="border-t border-gray-200 bg-white p-4 space-y-3">
         <div className="flex gap-2">
           <input
