@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import { useActiveRole } from '../lib/useActiveRole'
 
@@ -77,8 +78,6 @@ function RoleSwitch() {
 
         <button
           onClick={async () => {
-            const { createClient } = await import('@supabase/supabase-js')
-            const { supabase } = await import('./lib/supabaseClient')
             await supabase.auth.signOut()
             navigate('/')
           }}

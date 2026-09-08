@@ -37,6 +37,7 @@ function ProductDetail() {
   const [orderId, setOrderId] = useState(null)
   const [moreListings, setMoreListings] = useState([])
   const [timeLeft, setTimeLeft] = useState(null)
+  const [txRef, setTxRef] = useState(`AGRIMATCH-INIT-${Date.now()}`)
 
   useEffect(() => {
     async function fetchProduct() {
@@ -74,7 +75,7 @@ function ProductDetail() {
   }, [product])
 
   useEffect(() => {
-    if (!product || product.freshness === 'Harvesting Tomorrow') return
+    if (!product || product.freshness === 'Harvesting Tomorrow' || product.freshness === 'Future Harvest') return
 
     const getDeadline = () => {
       const harvestTime = new Date(product.created_at)
@@ -136,7 +137,7 @@ function ProductDetail() {
 
   const flutterConfig = {
     public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
-    tx_ref: `AGRIMATCH-${Date.now()}`,
+    tx_ref: txRef,
     amount: total,
     currency: 'NGN',
     payment_options: 'card,mobilemoney,ussd',
@@ -172,12 +173,20 @@ function ProductDetail() {
         .single()
 
       if (orderError) {
+        notify.error('Failed to create order')
         setError(orderError.message)
         setPaymentProcessing(false)
         return
       }
 
       setOrderId(orderData.id)
+
+      // Set the tx_ref to use the actual order UUID
+      const newTxRef = `AGRIMATCH-${orderData.id}`
+      setTxRef(newTxRef)
+
+      // Small delay to let state update
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       handleFlutterPayment({
         onSuccess: async (response) => {
@@ -209,6 +218,7 @@ function ProductDetail() {
         },
       })
     } catch (err) {
+      notify.error(err.message)
       setError(err.message)
       setPaymentProcessing(false)
     }
@@ -216,7 +226,6 @@ function ProductDetail() {
 
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)]">
-      {/* Header */}
       <header className="bg-[var(--color-primary-dark)] border-b border-black/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
           <div className="flex items-center justify-between gap-4">
@@ -246,9 +255,7 @@ function ProductDetail() {
               </Link>
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
-              <span className="text-xs sm:text-sm text-white/60 hidden sm:inline">
-                {user?.full_name}
-              </span>
+              <span className="text-xs sm:text-sm text-white/60 hidden sm:inline">{user?.full_name}</span>
               <button
                 onClick={async () => {
                   await supabase.auth.signOut()
@@ -264,7 +271,6 @@ function ProductDetail() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 pt-10 sm:pt-16 pb-8 sm:pb-12">
-        {/* Hero */}
         <motion.div
           className="grid md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 items-stretch"
           initial={{ opacity: 0, y: 20 }}
@@ -312,7 +318,7 @@ function ProductDetail() {
             whileHover={{ scale: 1.01 }}
             transition={{ duration: 0.3 }}
           >
-            <img src={product.image_url} alt={product.crop_type} loading="lazy" className="w-full h-full object-cover" />
+            <img loading="lazy" src={product.image_url} alt={product.crop_type} className="w-full h-full object-cover" />
           </motion.div>
         </motion.div>
 
@@ -323,22 +329,24 @@ function ProductDetail() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
-          {product.freshness === 'Harvesting Tomorrow' ? (
+          {product.freshness === 'Harvesting Tomorrow' || product.freshness === 'Future Harvest' ? (
             <div className="bg-[var(--color-surface)] rounded-lg p-4 sm:p-5">
               <p className="text-sm sm:text-base font-semibold text-[var(--color-charcoal)]/80">
-                This harvest is expected tomorrow — order now to reserve it.
+                {product.freshness === 'Future Harvest' && product.expected_harvest_date
+                  ? `Expected harvest: ${new Date(product.expected_harvest_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long' })} — order now to reserve.`
+                  : 'This harvest is expected tomorrow — order now to reserve it.'}
               </p>
             </div>
           ) : timeLeft === 'closed' ? (
             <div className="bg-red-50 rounded-lg p-4 sm:p-5">
               <p className="text-sm sm:text-base font-semibold text-red-700">
-                Pickup window has closed for this listing — check the farmer's other active listings below.
+                Pickup window has closed for this listing.
               </p>
             </div>
           ) : timeLeft ? (
             <div className={`rounded-lg p-4 sm:p-5 ${timeLeft.hours < 2 ? 'bg-red-50' : 'bg-[var(--color-secondary-light)]/25'}`}>
               <p className={`text-sm sm:text-base font-semibold ${timeLeft.hours < 2 ? 'text-red-700' : 'text-[var(--color-secondary-dark)]'}`}>
-                ⏰ Pickup window closes in {timeLeft.hours}h {timeLeft.minutes}m — order soon to guarantee this batch.
+                ⏰ Pickup window closes in {timeLeft.hours}h {timeLeft.minutes}m — order soon.
               </p>
             </div>
           ) : null}
@@ -346,7 +354,6 @@ function ProductDetail() {
 
         {/* More from farmer + Order card */}
         <div className="grid md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 mt-10 sm:mt-12">
-          {/* More from this farmer */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -360,20 +367,17 @@ function ProductDetail() {
             ) : (
               <div className="grid grid-cols-2 gap-4">
                 {moreListings.map((listing) => (
-                  <motion.div
-                    key={listing.id}
-                    whileHover={{ y: -4 }}
-                    transition={{ duration: 0.2 }}
-                  >
+                  <motion.div key={listing.id} whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
                     <Link
                       to={`/product/${listing.id}`}
                       className="block bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md border border-black/5 transition-all"
                     >
                       <div className="aspect-[4/3] bg-[var(--color-surface)] overflow-hidden">
                         <img
+                          loading="lazy"
                           src={listing.image_url}
                           alt={listing.crop_type}
-                          loading="lazy" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                         />
                       </div>
                       <div className="p-3">
@@ -388,7 +392,6 @@ function ProductDetail() {
               </div>
             )}
 
-            {/* Farmer Card */}
             <motion.div
               className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-6 mt-6 border border-black/5"
               initial={{ opacity: 0 }}
@@ -408,7 +411,6 @@ function ProductDetail() {
             </motion.div>
           </motion.div>
 
-          {/* Order Form */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -499,7 +501,7 @@ function ProductDetail() {
 
       <footer className="border-t border-black/10 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-[var(--color-charcoal)]/60 mt-12 sm:mt-16">
         <p className="font-bold text-[var(--color-charcoal)] mb-2">AgriMatch</p>
-        <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>
+        <p>© 2026 AgriMatch. Benin City, Edo State.</p>
       </footer>
     </div>
   )
