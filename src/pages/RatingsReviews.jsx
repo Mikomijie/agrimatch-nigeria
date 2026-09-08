@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
@@ -13,7 +13,6 @@ function Stars({ count }) {
 }
 
 function RatingsReviews() {
-  const navigate = useNavigate()
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -21,8 +20,8 @@ function RatingsReviews() {
   useEffect(() => {
     async function fetchReviews() {
       const { data, error } = await supabase
-        .from('reviews')
-        .select('*, reviewer:reviewer_id(name), reviewed:reviewed_id(name, role)')
+        .from('ratings')
+        .select('*, buyer:buyer_id(full_name), farmer:farmer_id(full_name)')
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -38,7 +37,6 @@ function RatingsReviews() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAFAF8] to-[#F5F3F0]">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
           <div className="flex items-center justify-between gap-4">
@@ -68,13 +66,12 @@ function RatingsReviews() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12">
-        {/* Hero */}
         <div className="mb-10 sm:mb-12">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-3 sm:mb-4">
             Reputation & <span className="text-[#2E7D32]">Community</span>
           </h1>
           <p className="text-base sm:text-lg text-gray-600 max-w-md">
-            Transparency drives the AgriMatch ecosystem. Honest feedback from our network of farmers, buyers, and logistics partners.
+            Transparency drives the AgriMatch ecosystem. Honest feedback from our network of farmers and buyers.
           </p>
         </div>
 
@@ -97,31 +94,28 @@ function RatingsReviews() {
                 className="bg-white border-2 border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm"
               >
                 <div className="flex items-start gap-4">
-                  {/* Avatar */}
                   <div className="w-12 h-12 bg-[#1B5E20] rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                    {review.reviewer?.name?.charAt(0).toUpperCase()}
+                    {review.buyer?.full_name?.charAt(0).toUpperCase()}
                   </div>
 
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                       <div>
                         <p className="font-bold text-gray-900 text-base sm:text-lg">
-                          {review.reviewer?.name}
+                          {review.buyer?.full_name}
                         </p>
                         <p className="text-xs text-gray-600 mt-0.5">
-                          reviewed <span className="font-semibold">{review.reviewed?.name}</span> 
-                          <span className="text-gray-500"> ({review.reviewed?.role})</span>
+                          reviewed <span className="font-semibold">{review.farmer?.full_name}</span>
                         </p>
                       </div>
                       <div className="flex-shrink-0">
-                        <Stars count={review.rating} />
+                        <Stars count={review.stars} />
                       </div>
                     </div>
 
-                    {review.comment && (
+                    {review.review && (
                       <p className="text-sm text-gray-700 leading-relaxed">
-                        {review.comment}
+                        {review.review}
                       </p>
                     )}
                   </div>
@@ -132,10 +126,9 @@ function RatingsReviews() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-gray-200 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-gray-600 mt-12 sm:mt-16">
         <p className="font-bold text-gray-900 mb-2">AgriMatch</p>
-        <p>© 2026 AgriMatch. Techiman Regional Hub, Bono East.</p>
+        <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>
       </footer>
     </div>
   )

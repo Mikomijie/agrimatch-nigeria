@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import ProductDetail from './pages/ProductDetail'
+import BulkOrderRequest from './pages/BulkOrderRequest'
+import PaymentCallback from './pages/PaymentCallback'
 import FarmerDashboard from './pages/FarmerDashboard'
 import Landing from './pages/Landing'
 import BuyerMarketplace from './pages/BuyerMarketplace'
@@ -11,6 +13,8 @@ import USSDSimulator from './pages/USSDSimulator'
 import Terms from './pages/Terms'
 import RoleSwitch from './pages/RoleSwitch'
 import Auth from './pages/Auth'
+import TransporterRegistration from './pages/TransporterRegistration'
+
 function App() {
   return (
     <BrowserRouter>
@@ -29,6 +33,9 @@ function App() {
         <Route path="/ussd" element={<USSDSimulator />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/role-switch" element={<RoleSwitch />} />
+        <Route path="/transporter-registration" element={<TransporterRegistration />} />
+        <Route path="/payment-callback" element={<PaymentCallback />} />
+        <Route path="/bulk-order" element={<BulkOrderRequest />} />
       </Routes>
     </BrowserRouter>
   )
