@@ -2,6 +2,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3'
+import { sendEmail, orderConfirmedEmail, newOrderFarmerEmail } from '../lib/sendbyteClient'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import { notify } from '../lib/notifications'
@@ -67,7 +68,35 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
             .update({ quantity: Math.max(0, product.quantity - quantity) })
             .eq('id', product.id)
 
-             notify.success('Payment successful! Order confirmed.')
+                       notify.success('Payment successful! Order confirmed.')
+
+          // Send emails via SendByte
+          const { data: fullOrder } = await supabase
+            .from('orders')
+            .select('*, listings(crop_type, profiles(full_name, email)), buyer:buyer_id(full_name, email)')
+            .eq('id', orderId)
+            .single()
+
+          if (fullOrder) {
+            const buyerEmail = fullOrder.buyer?.email
+            const farmerEmail = fullOrder.listings?.profiles?.email
+            const buyerName = fullOrder.buyer?.full_name
+            const farmerName = fullOrder.listings?.profiles?.full_name
+            const cropType = fullOrder.listings?.crop_type
+            const quantity = fullOrder.quantity
+            const total = fullOrder.total_price
+
+            if (buyerEmail) {
+              const { subject, html } = orderConfirmedEmail({ buyerName, farmerName, cropType, quantity, total, orderId })
+              await sendEmail({ to: buyerEmail, subject, html })
+            }
+
+            if (farmerEmail) {
+              const { subject, html } = newOrderFarmerEmail({ farmerName, buyerName, cropType, quantity, total, orderId })
+              await sendEmail({ to: farmerEmail, subject, html })
+            }
+          }
+
           setTimeout(() => navigate(`/tracking/${orderId}`), 1500)
         } else {
           notify.error('Payment was not completed.')
