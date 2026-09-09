@@ -1,7 +1,7 @@
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useFlutterwave } from 'flutterwave-react-v3'
+import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import { notify } from '../lib/notifications'
@@ -36,7 +36,9 @@ function ProductDetail() {
   const [paymentProcessing, setPaymentProcessing] = useState(false)
   const [moreListings, setMoreListings] = useState([])
   const [timeLeft, setTimeLeft] = useState(null)
-  const pendingOrderRef = useRef(null)
+
+  // Generate tx_ref once — stable for this page load
+  const [txRef] = useState(`AGRIMATCH-${Date.now()}`)
 
   useEffect(() => {
     async function fetchProduct() {
@@ -130,16 +132,17 @@ function ProductDetail() {
   const logisticsFee = getTransportCost(product.location)
   const total = subtotal + logisticsFee
 
+  // Per docs: config is set once at hook init
+  // tx_ref is stable — generated once when component mounts
   const flutterConfig = {
     public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
-    tx_ref: `AGRIMATCH-PLACEHOLDER`,
+    tx_ref: txRef,
     amount: total,
     currency: 'NGN',
     payment_options: 'card,mobilemoney,ussd',
-    redirect_url: `${window.location.origin}/payment-callback`,
     customer: {
       email: user?.email || 'buyer@agrimatch.ng',
-      phonenumber: user?.phone || '08000000000',
+      phone_number: user?.phone || '08000000000',
       name: user?.full_name || 'AgriMatch Buyer',
     },
     customizations: {
@@ -155,7 +158,8 @@ function ProductDetail() {
       setPaymentProcessing(true)
       setError(null)
 
-      // Step 1: Create order in Supabase first
+      // Step 1: Create order in Supabase
+      // Store txRef as payment_ref so PaymentCallback can find this order by tx_ref
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -165,6 +169,7 @@ function ProductDetail() {
           quantity: quantity,
           total_price: total,
           status: 'pending',
+          payment_ref: txRef,
         })
         .select()
         .single()
@@ -176,30 +181,34 @@ function ProductDetail() {
         return
       }
 
-      // Store order in ref so PaymentCallback can use it
-      pendingOrderRef.current = orderData
-
-      // Step 2: Open Flutterwave with the real order UUID as tx_ref
+      // Step 2: Open Flutterwave modal
+      // Per docs: use callback + closePaymentModal()
       handleFlutterPayment({
-        tx_ref: `AGRIMATCH-${orderData.id}`,
-        onSuccess: async (response) => {
-          // Update order status
-          await supabase
-            .from('orders')
-            .update({
-              status: 'confirmed',
-              payment_ref: String(response.transaction_id),
-            })
-            .eq('id', orderData.id)
+        callback: async (response) => {
+          closePaymentModal()
 
-          // Reduce listing quantity
-          await supabase
-            .from('listings')
-            .update({ quantity: Math.max(0, product.quantity - quantity) })
-            .eq('id', product.id)
+          if (response.status === 'successful' || response.status === 'completed') {
+            // Update order to confirmed
+            await supabase
+              .from('orders')
+              .update({
+                status: 'confirmed',
+                payment_ref: String(response.transaction_id),
+              })
+              .eq('id', orderData.id)
 
-          notify.success('Payment successful! Order confirmed.')
-          setTimeout(() => navigate(`/tracking/${orderData.id}`), 1500)
+            // Reduce listing quantity
+            await supabase
+              .from('listings')
+              .update({ quantity: Math.max(0, product.quantity - quantity) })
+              .eq('id', product.id)
+
+            notify.success('Payment successful! Order confirmed.')
+            setTimeout(() => navigate(`/tracking/${orderData.id}`), 1500)
+          } else {
+            notify.error('Payment was not completed.')
+            setPaymentProcessing(false)
+          }
         },
         onClose: () => {
           setPaymentProcessing(false)
@@ -275,7 +284,7 @@ function ProductDetail() {
               {product.crop_type}
             </h1>
             <p className="text-base sm:text-lg text-[var(--color-charcoal)]/70 max-w-md leading-relaxed">
-              Freshly harvested produce from verified Nigerian farmers — direct to you, no middlemen.
+              Freshly harvested produce from verified Nigerian farmers. Direct to you, no middlemen.
             </p>
 
             <div className="grid grid-cols-2 gap-6 mt-8 sm:mt-10">
@@ -323,7 +332,7 @@ function ProductDetail() {
               <p className="text-sm sm:text-base font-semibold text-[var(--color-charcoal)]/80">
                 {product.freshness === 'Future Harvest' && product.expected_harvest_date
                   ? `Expected harvest: ${new Date(product.expected_harvest_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long' })} — order now to reserve.`
-                  : 'This harvest is expected tomorrow — order now to reserve it.'}
+                  : 'This harvest is expected tomorrow. Order now to reserve it.'}
               </p>
             </div>
           ) : timeLeft === 'closed' ? (
@@ -335,7 +344,7 @@ function ProductDetail() {
           ) : timeLeft ? (
             <div className={`rounded-lg p-4 sm:p-5 ${timeLeft.hours < 2 ? 'bg-red-50' : 'bg-[var(--color-secondary-light)]/25'}`}>
               <p className={`text-sm sm:text-base font-semibold ${timeLeft.hours < 2 ? 'text-red-700' : 'text-[var(--color-secondary-dark)]'}`}>
-                ⏰ Pickup window closes in {timeLeft.hours}h {timeLeft.minutes}m — order soon.
+                Pickup window closes in {timeLeft.hours}h {timeLeft.minutes}m. Order soon.
               </p>
             </div>
           ) : null}
@@ -449,7 +458,7 @@ function ProductDetail() {
               </div>
 
               <div className="bg-[var(--color-primary-light)]/20 rounded-lg p-4 mb-6">
-                <p className="text-sm font-bold text-[var(--color-primary-dark)] mb-2">🔒 Escrow Guaranteed</p>
+                <p className="text-sm font-bold text-[var(--color-primary-dark)] mb-2">Escrow Guaranteed</p>
                 <p className="text-xs text-[var(--color-charcoal)]/70 leading-relaxed">
                   Your payment is held securely. Funds are only released to the farmer once you confirm delivery.
                 </p>
