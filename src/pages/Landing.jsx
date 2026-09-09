@@ -43,13 +43,14 @@ function Counter({ value, suffix = '' }) {
 function Landing() {
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)]">
+
       {/* Header */}
-      <header className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-primary-dark)] backdrop-blur-sm border-b border-black/10">
+      <header className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-primary-dark)] border-b border-black/10">
         <span className="font-[var(--font-heading)] italic text-2xl text-white flex items-center gap-2">
           <LeafIcon className="text-[var(--color-primary-light)]" />
           AgriMatch
         </span>
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
+        <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
           <Link to="/marketplace" className="text-white/80 hover:text-white transition-colors">Marketplace</Link>
           <Link to="/bulk-order" className="text-white/80 hover:text-white transition-colors">Bulk Orders</Link>
           <Link to="/ussd" className="text-white/80 hover:text-white transition-colors">USSD</Link>
@@ -64,7 +65,7 @@ function Landing() {
 
       {/* Hero */}
       <section
-        className="relative h-[500px] md:h-[620px] flex items-center justify-center overflow-hidden"
+        className="relative h-[520px] md:h-[640px] flex items-center justify-center overflow-hidden"
         style={{
           backgroundImage: 'url(/images/hero-nigeria-farming.jpg)',
           backgroundSize: 'cover',
@@ -73,7 +74,7 @@ function Landing() {
       >
         <div className="absolute inset-0 bg-black/55" />
         <motion.div
-          className="relative z-10 text-center px-6 max-w-3xl mx-auto"
+          className="relative z-10 text-center px-6 max-w-2xl mx-auto"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: 'easeOut' }}
@@ -84,24 +85,24 @@ function Landing() {
           <h1 className="font-[var(--font-heading)] text-4xl md:text-6xl text-white leading-tight mb-6">
             Sell your harvest <span className="italic">before you pick it.</span>
           </h1>
-          <p className="text-white/85 text-lg max-w-xl mx-auto mb-8">
-            Escrow-backed payments. Automatic order pooling across farmers. Verified delivery with photos. Built for Nigerian agriculture.
+          <p className="text-white/85 text-base md:text-lg max-w-lg mx-auto mb-8">
+            Farmers list produce and get paid via escrow. Buyers pool orders across multiple farmers. Transporters deliver with photo verification.
           </p>
-          <div className="flex gap-4 justify-center flex-wrap">
+          <div className="flex gap-3 justify-center flex-wrap">
             <motion.div whileTap={{ scale: 0.96 }}>
               <Link
                 to="/auth"
-                className="inline-block bg-[var(--color-secondary)] text-white px-8 py-3 rounded-md font-bold tracking-wide hover:brightness-95 transition-all"
+                className="inline-block bg-[var(--color-secondary)] text-white px-7 py-3 rounded-md font-bold hover:brightness-95 transition-all"
               >
-                START FOR FREE
+                GET STARTED
               </Link>
             </motion.div>
             <motion.div whileTap={{ scale: 0.96 }}>
               <Link
                 to="/marketplace"
-                className="inline-block bg-white/10 border border-white/40 text-white px-8 py-3 rounded-md font-bold tracking-wide hover:bg-white/20 transition-all"
+                className="inline-block bg-white/10 border border-white/40 text-white px-7 py-3 rounded-md font-bold hover:bg-white/20 transition-all"
               >
-                BROWSE MARKETPLACE
+                BROWSE MARKET
               </Link>
             </motion.div>
           </div>
@@ -109,243 +110,160 @@ function Landing() {
       </section>
 
       {/* Stats strip */}
-      <section className="bg-[var(--color-primary)] text-white px-6 md:px-10 py-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-center text-xs md:text-sm tracking-wide font-semibold">
-        <span>🔒 ESCROW PROTECTION ON EVERY ORDER</span>
-        <span>⚡ PRE-ORDER HARVESTS BEFORE THEY'RE PICKED</span>
-        <span>🚛 VERIFIED DELIVERY WITH PHOTO PROOF</span>
+      <section className="bg-[var(--color-primary)] text-white px-6 md:px-10 py-4 grid grid-cols-1 md:grid-cols-3 gap-2 text-center text-xs md:text-sm tracking-wide font-semibold">
+        <span>Escrow protection on every order</span>
+        <span>Pre-order harvests before they are picked</span>
+        <span>Verified delivery with photo proof</span>
       </section>
 
-      {/* Three role sections */}
+      {/* Three differentiators */}
       <AnimatedSection className="bg-[var(--color-surface)] px-6 md:px-10 py-16">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)]">
-              Built for everyone in the value chain
-            </h2>
-            <p className="mt-3 text-[var(--color-charcoal)]/70 max-w-xl mx-auto text-sm">
-              Farmers, buyers, and transporters each get tools built specifically for their role.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <motion.div
-              variants={fadeUp}
-              transition={{ duration: 0.6 }}
-              className="bg-[var(--color-primary-light)]/30 rounded-lg p-8 hover:shadow-lg transition-shadow"
-            >
-              <p className="text-xs font-semibold text-[var(--color-primary-dark)] tracking-wide mb-4">
-                01 / FOR FARMERS
-              </p>
-              <h2 className="font-[var(--font-heading)] text-xl text-[var(--color-primary-dark)] mb-4">
-                Know your buyer before you harvest.
-              </h2>
-              <ul className="space-y-2 text-sm text-[var(--color-charcoal)]/80">
-                <li>✓ List future harvests and get pre-orders</li>
-                <li>✓ Receive payment directly — no middlemen</li>
-                <li>✓ Works via USSD without smartphone</li>
-                <li>✓ Real-time order notifications</li>
-              </ul>
-            </motion.div>
-
-            <motion.div
-              variants={fadeUp}
-              transition={{ duration: 0.6 }}
-              className="bg-[var(--color-secondary-light)]/25 rounded-lg p-8 hover:shadow-lg transition-shadow"
-            >
-              <p className="text-xs font-semibold text-[var(--color-secondary-dark)] tracking-wide mb-4">
-                02 / FOR BUYERS
-              </p>
-              <h2 className="font-[var(--font-heading)] text-xl text-[var(--color-secondary-dark)] mb-4">
-                Order more than one farmer can supply.
-              </h2>
-              <ul className="space-y-2 text-sm text-[var(--color-charcoal)]/80">
-                <li>✓ Pool orders automatically across farmers</li>
-                <li>✓ Escrow holds your money until delivery</li>
-                <li>✓ Pre-order upcoming harvests</li>
-                <li>✓ Track every delivery in real time</li>
-              </ul>
-            </motion.div>
-
-            <motion.div
-              variants={fadeUp}
-              transition={{ duration: 0.6 }}
-              className="bg-[var(--color-moss)]/20 rounded-lg p-8 hover:shadow-lg transition-shadow"
-            >
-              <p className="text-xs font-semibold text-[var(--color-moss)] tracking-wide mb-4">
-                03 / FOR TRANSPORTERS
-              </p>
-              <h2 className="font-[var(--font-heading)] text-xl text-[var(--color-primary-dark)] mb-4">
-                Accept loads, earn per delivery.
-              </h2>
-              <ul className="space-y-2 text-sm text-[var(--color-charcoal)]/80">
-                <li>✓ Browse available loads near you</li>
-                <li>✓ Upload pickup and delivery photos</li>
-                <li>✓ Payment released on confirmed delivery</li>
-                <li>✓ Build your delivery reputation</li>
-              </ul>
-            </motion.div>
-          </div>
-        </div>
-      </AnimatedSection>
-
-      {/* What makes us different */}
-      <AnimatedSection className="bg-[var(--color-background-warm)] px-6 md:px-10 py-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)]">
               Not a marketplace. A coordination platform.
             </h2>
-            <p className="mt-3 text-[var(--color-charcoal)]/70 max-w-2xl mx-auto text-sm">
-              Generic marketplaces handle listings. AgriMatch handles trust, logistics, and value chain coordination.
+            <p className="mt-3 text-[var(--color-charcoal)]/60 max-w-lg mx-auto text-sm">
+              Generic platforms handle listings. AgriMatch handles trust, logistics, and the entire value chain.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <motion.div
               variants={fadeUp}
-              transition={{ duration: 0.6 }}
-              className="p-8 rounded-lg border border-black/10 hover:shadow-lg transition-shadow group bg-[var(--color-surface)]"
+              className="p-8 rounded-xl bg-white border border-black/8 hover:shadow-lg transition-shadow group"
             >
-              <div className="w-12 h-12 bg-[var(--color-primary-light)]/40 rounded-lg flex items-center justify-center mb-6 group-hover:bg-[var(--color-primary)] transition-colors">
-                <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-primary-dark)] group-hover:text-white transition-colors">01</span>
+              <div className="w-12 h-12 bg-[var(--color-primary-light)]/40 rounded-lg flex items-center justify-center mb-5 group-hover:bg-[var(--color-primary)] transition-colors">
+                <span className="font-[var(--font-heading)] font-bold text-[var(--color-primary-dark)] group-hover:text-white transition-colors">01</span>
               </div>
-              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)] mb-3">
-                Escrow Protection
-              </h3>
-              <p className="text-[var(--color-charcoal)]/70 text-sm leading-relaxed">
-                Buyer pays into escrow. Farmer receives funds only after the buyer confirms delivery quality. No more payment disputes, no more cash risk.
+              <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)] mb-2">Escrow Payments</h3>
+              <p className="text-sm text-[var(--color-charcoal)]/60 leading-relaxed">
+                Buyers pay into escrow. Farmers receive funds only after delivery is confirmed. No cash risk on either side.
               </p>
             </motion.div>
 
             <motion.div
               variants={fadeUp}
-              transition={{ duration: 0.6 }}
-              className="p-8 rounded-lg border border-black/10 hover:shadow-lg transition-shadow group bg-[var(--color-surface)]"
+              className="p-8 rounded-xl bg-white border border-black/8 hover:shadow-lg transition-shadow group"
             >
-              <div className="w-12 h-12 bg-[var(--color-secondary-light)]/40 rounded-lg flex items-center justify-center mb-6 group-hover:bg-[var(--color-secondary)] transition-colors">
-                <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-secondary-dark)] group-hover:text-white transition-colors">02</span>
+              <div className="w-12 h-12 bg-[var(--color-secondary-light)]/40 rounded-lg flex items-center justify-center mb-5 group-hover:bg-[var(--color-secondary)] transition-colors">
+                <span className="font-[var(--font-heading)] font-bold text-[var(--color-secondary-dark)] group-hover:text-white transition-colors">02</span>
               </div>
-              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)] mb-3">
-                Automatic Order Pooling
-              </h3>
-              <p className="text-[var(--color-charcoal)]/70 text-sm leading-relaxed">
-                Need 500kg but no single farmer has that much? AgriMatch splits your order automatically across multiple verified farmers. One order. Multiple sources. Zero coordination.
+              <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)] mb-2">Order Pooling</h3>
+              <p className="text-sm text-[var(--color-charcoal)]/60 leading-relaxed">
+                Need 500kg but no single farmer has enough? AgriMatch splits your order across multiple verified farmers automatically.
               </p>
             </motion.div>
 
             <motion.div
               variants={fadeUp}
-              transition={{ duration: 0.6 }}
-              className="p-8 rounded-lg border border-black/10 hover:shadow-lg transition-shadow group bg-[var(--color-surface)]"
+              className="p-8 rounded-xl bg-white border border-black/8 hover:shadow-lg transition-shadow group"
             >
-              <div className="w-12 h-12 bg-[var(--color-moss)]/30 rounded-lg flex items-center justify-center mb-6 group-hover:bg-[var(--color-moss)] transition-colors">
-                <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-moss)] group-hover:text-white transition-colors">03</span>
+              <div className="w-12 h-12 bg-[var(--color-moss)]/30 rounded-lg flex items-center justify-center mb-5 group-hover:bg-[var(--color-moss)] transition-colors">
+                <span className="font-[var(--font-heading)] font-bold text-[var(--color-moss)] group-hover:text-white transition-colors">03</span>
               </div>
-              <h3 className="font-[var(--font-heading)] text-xl text-[var(--color-charcoal)] mb-3">
-                Future Harvest Pre-orders
-              </h3>
-              <p className="text-[var(--color-charcoal)]/70 text-sm leading-relaxed">
-                Farmers list crops that haven't been harvested yet. Buyers reserve and pay in advance. Farmers know their income before touching a hoe.
+              <h3 className="font-[var(--font-heading)] text-lg text-[var(--color-charcoal)] mb-2">Future Harvest Pre-orders</h3>
+              <p className="text-sm text-[var(--color-charcoal)]/60 leading-relaxed">
+                Farmers list crops not yet harvested. Buyers reserve and pay in advance. Farmers know their income before picking a single tomato.
               </p>
             </motion.div>
           </div>
-        </div>
-      </AnimatedSection>
-
-      {/* Animated Stats */}
-      <AnimatedSection className="bg-[var(--color-surface)] px-6 md:px-10 py-14 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-6 text-center">
-        <div>
-          <Counter value="40" suffix="%" />
-          <p className="text-xs text-[var(--color-charcoal)]/70 mt-2 max-w-xs mx-auto">
-            Of Nigerian produce is lost annually due to broken market linkages — AgriMatch exists to eliminate this
-          </p>
-        </div>
-        <div>
-          <Counter value="3" suffix=" roles" />
-          <p className="text-xs text-[var(--color-charcoal)]/70 mt-2 max-w-xs mx-auto">
-            Farmers, buyers, and transporters all coordinated on one platform — no external tools needed
-          </p>
-        </div>
-        <div>
-          <Counter value="0" suffix="%" />
-          <p className="text-xs text-[var(--color-charcoal)]/70 mt-2 max-w-xs mx-auto">
-            Listing fee for farmers. AgriMatch earns only when farmers earn — aligned incentives from day one
-          </p>
         </div>
       </AnimatedSection>
 
       {/* How it works */}
       <AnimatedSection className="bg-[var(--color-background-warm)] px-6 md:px-10 py-16">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)]">
-              From harvest to delivery in 4 steps
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)] mb-12">
+            From harvest to payment in 4 steps
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { step: '01', title: 'Farmer Lists', desc: 'Lists fresh or upcoming harvest with price, quantity, and location.' },
-              { step: '02', title: 'Buyer Orders', desc: 'Pays via escrow. Large orders are pooled across multiple farmers automatically.' },
-              { step: '03', title: 'Transporter Delivers', desc: 'Accepts the load, uploads pickup photo, delivers to buyer.' },
-              { step: '04', title: 'Funds Released', desc: 'Buyer confirms quality. Escrow releases payment to farmer instantly.' },
+              { step: '01', title: 'Farmer Lists', desc: 'Fresh or upcoming harvest with price and location.' },
+              { step: '02', title: 'Buyer Orders', desc: 'Pays via escrow. Large orders pool across farmers.' },
+              { step: '03', title: 'Transporter Delivers', desc: 'Accepts load, uploads pickup and delivery photos.' },
+              { step: '04', title: 'Funds Released', desc: 'Buyer confirms quality. Farmer receives payment.' },
             ].map((item, i) => (
               <motion.div
                 key={i}
                 variants={fadeUp}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
+                transition={{ delay: i * 0.1 }}
                 className="text-center"
               >
-                <div className="w-14 h-14 bg-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="font-[var(--font-heading)] text-white font-bold">{item.step}</span>
+                <div className="w-12 h-12 bg-[var(--color-primary)] rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="font-[var(--font-heading)] text-white font-bold text-sm">{item.step}</span>
                 </div>
-                <h3 className="font-bold text-[var(--color-charcoal)] mb-2">{item.title}</h3>
-                <p className="text-xs text-[var(--color-charcoal)]/60 leading-relaxed">{item.desc}</p>
+                <h3 className="font-bold text-sm text-[var(--color-charcoal)] mb-1">{item.title}</h3>
+                <p className="text-xs text-[var(--color-charcoal)]/55 leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </AnimatedSection>
 
+      {/* Stats */}
+      <AnimatedSection className="bg-[var(--color-surface)] px-6 md:px-10 py-14 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+        <div>
+          <Counter value="40" suffix="%" />
+          <p className="text-xs text-[var(--color-charcoal)]/60 mt-2 max-w-xs mx-auto">
+            Of Nigerian produce lost annually due to broken market linkages
+          </p>
+        </div>
+        <div>
+          <Counter value="0" suffix="%" />
+          <p className="text-xs text-[var(--color-charcoal)]/60 mt-2 max-w-xs mx-auto">
+            Listing fee for farmers. AgriMatch earns only when farmers earn
+          </p>
+        </div>
+        <div>
+          <Counter value="3" suffix=" roles" />
+          <p className="text-xs text-[var(--color-charcoal)]/60 mt-2 max-w-xs mx-auto">
+            Farmers, buyers, and transporters all coordinated on one platform
+          </p>
+        </div>
+      </AnimatedSection>
+
       {/* USSD CTA */}
       <AnimatedSection className="bg-[var(--color-primary-dark)] text-white px-6 md:px-10 py-16 text-center">
-        <motion.div variants={fadeUp} transition={{ duration: 0.6 }}>
+        <motion.div variants={fadeUp}>
           <p className="text-xs font-semibold tracking-wide text-[var(--color-primary-light)] uppercase mb-3">
             Built for Rural Nigeria
           </p>
-          <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-white">
+          <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-white mb-4">
             No smartphone? No problem.
           </h2>
-          <p className="mt-4 text-white/80 max-w-xl mx-auto text-sm leading-relaxed">
-            Farmers in low-connectivity areas can list produce, check orders, and receive payment alerts via USSD — the same way they check their airtime balance. Try the live simulator.
+          <p className="text-white/75 max-w-md mx-auto text-sm leading-relaxed mb-8">
+            Farmers in low connectivity areas can list produce and check orders via USSD the same way they check their airtime balance.
           </p>
-          <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-8">
+          <motion.div whileTap={{ scale: 0.96 }} className="inline-block">
             <Link
               to="/ussd"
-              className="inline-block bg-white text-[var(--color-primary-dark)] px-8 py-3 rounded-md font-bold tracking-wide hover:brightness-95 transition-all"
+              className="inline-block bg-white text-[var(--color-primary-dark)] px-8 py-3 rounded-md font-bold hover:brightness-95 transition-all"
             >
-              TRY USSD SIMULATOR →
+              TRY USSD SIMULATOR
             </Link>
           </motion.div>
         </motion.div>
       </AnimatedSection>
 
-      {/* Bulk Order CTA */}
+      {/* Bulk order CTA */}
       <AnimatedSection className="bg-[var(--color-secondary)]/10 px-6 md:px-10 py-16 text-center">
-        <motion.div variants={fadeUp} transition={{ duration: 0.6 }}>
+        <motion.div variants={fadeUp}>
           <p className="text-xs font-semibold tracking-wide text-[var(--color-secondary-dark)] uppercase mb-3">
-            For Large Buyers & Off-takers
+            For Large Buyers
           </p>
-          <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)]">
-            Need a truckload? We'll pool it.
+          <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)] mb-4">
+            Need a truckload? We will pool it.
           </h2>
-          <p className="mt-4 text-[var(--color-charcoal)]/70 max-w-xl mx-auto text-sm leading-relaxed">
-            One request. Multiple farmers. Automatic coordination. AgriMatch finds the farmers, splits the order, and coordinates delivery — you just confirm when it arrives.
+          <p className="text-[var(--color-charcoal)]/60 max-w-md mx-auto text-sm leading-relaxed mb-8">
+            One request. Multiple farmers. Automatic coordination. You just confirm when it arrives.
           </p>
-          <motion.div whileTap={{ scale: 0.96 }} className="inline-block mt-8">
+          <motion.div whileTap={{ scale: 0.96 }} className="inline-block">
             <Link
               to="/bulk-order"
-              className="inline-block bg-[var(--color-secondary)] text-white px-8 py-3 rounded-md font-bold tracking-wide hover:brightness-95 transition-all"
+              className="inline-block bg-[var(--color-secondary)] text-white px-8 py-3 rounded-md font-bold hover:brightness-95 transition-all"
             >
-              PLACE BULK ORDER →
+              PLACE BULK ORDER
             </Link>
           </motion.div>
         </motion.div>
@@ -355,21 +273,19 @@ function Landing() {
       <AnimatedSection className="text-center py-16 px-6 bg-[var(--color-background-warm)]">
         <motion.h2
           variants={fadeUp}
-          transition={{ duration: 0.6 }}
           className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)]"
         >
           The harvest is ready. <span className="italic">Are you?</span>
         </motion.h2>
         <motion.p
           variants={fadeUp}
-          className="mt-4 text-[var(--color-charcoal)]/60 max-w-md mx-auto text-sm"
+          className="mt-4 text-[var(--color-charcoal)]/55 max-w-sm mx-auto text-sm"
         >
-          Join farmers, buyers, and transporters already using AgriMatch to move Nigerian produce faster, safer, and fairer.
+          Join farmers, buyers, and transporters moving Nigerian produce faster, safer, and fairer.
         </motion.p>
         <motion.div
           variants={fadeUp}
-          transition={{ duration: 0.6 }}
-          className="mt-6 flex gap-4 justify-center flex-wrap"
+          className="mt-6 flex gap-3 justify-center flex-wrap"
         >
           <motion.div whileTap={{ scale: 0.96 }}>
             <Link
@@ -397,12 +313,12 @@ function Landing() {
             AgriMatch
           </p>
           <div className="my-4 h-px bg-black/10" />
-          <p className="text-[var(--color-charcoal)]/70 text-sm leading-relaxed">
+          <p className="text-[var(--color-charcoal)]/60 text-sm">
             Empowering Nigerian farmers through technology that respects the soil and rewards the work.
           </p>
           <div className="my-4 h-px bg-black/10" />
-          <p className="text-[var(--color-charcoal)]/50 text-xs tracking-wide">
-            © 2026 AgriMatch · Benin City, Edo State · Built with Pxxl, Sabilytics & SendByte
+          <p className="text-[var(--color-charcoal)]/40 text-xs tracking-wide">
+            © 2026 AgriMatch · Benin City, Edo State · Built with Pxxl, Sabilytics and SendByte
           </p>
         </div>
       </footer>
