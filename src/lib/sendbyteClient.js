@@ -65,7 +65,7 @@ export function newOrderFarmerEmail({ farmerName, buyerName, cropType, quantity,
           View My Dashboard
         </a>
 
-        <p style="color: #999; font-size: 12px; margin-top: 32px;">© 2026 AgriMatch · Jos Regional Hub, Plateau State</p>
+        <p style="color: #999; font-size: 12px; margin-top: 32px;">© 2026 AgriMatch · Benin City, Edo State</p>
       </div>
     `
   }

@@ -122,8 +122,8 @@ function Terms() {
             <div className="mt-4 p-4 bg-green-50 rounded-lg border-2 border-green-200">
               <p className="font-semibold text-gray-800">AgriMatch Support</p>
               <p className="text-gray-700">Email: support@agrimatch.com</p>
-              <p className="text-gray-700">Phone: +234 (0) 800 000 0000</p>
-<p className="text-gray-700">Location: Jos, Plateau State, Nigeria</p>
+              <p className="text-gray-700">Phone: +234 (0) 905 196 4715</p>
+<p className="text-gray-700">Location: Benin City, Edo State, Nigeria</p>
             </div>
           </section>
         </motion.div>

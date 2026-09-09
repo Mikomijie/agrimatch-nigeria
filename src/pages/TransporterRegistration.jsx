@@ -263,7 +263,7 @@ function TransporterRegistration() {
 
       <footer className="border-t border-black/10 px-4 sm:px-6 md:px-10 py-8 text-center text-sm text-[var(--color-charcoal)]/60 mt-12">
         <p className="font-bold text-[var(--color-charcoal)] mb-2">AgriMatch</p>
-        <p>© 2026 AgriMatch. Jos Regional Hub, Plateau State.</p>
+        <p>© 2026 AgriMatch. Benin City, Edo State.</p>
       </footer>
     </div>
   )
