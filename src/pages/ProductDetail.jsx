@@ -1,7 +1,7 @@
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3'
+import { useFlutterwave } from 'flutterwave-react-v3'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import { notify } from '../lib/notifications'
@@ -36,10 +36,6 @@ function ProductDetail() {
   const [paymentProcessing, setPaymentProcessing] = useState(false)
   const [moreListings, setMoreListings] = useState([])
   const [timeLeft, setTimeLeft] = useState(null)
-
-  // Generate tx_ref once — stable for this page load
-  const [txRef] = useState(`AGRIMATCH-${Date.now()}`)
-
   useEffect(() => {
     async function fetchProduct() {
       const { data, error } = await supabase
@@ -132,34 +128,11 @@ function ProductDetail() {
   const logisticsFee = getTransportCost(product.location)
   const total = subtotal + logisticsFee
 
-  // Per docs: config is set once at hook init
-  // tx_ref is stable — generated once when component mounts
-  const flutterConfig = {
-    public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
-    tx_ref: txRef,
-    amount: total,
-    currency: 'NGN',
-    payment_options: 'card,mobilemoney,ussd',
-    customer: {
-      email: user?.email || 'buyer@agrimatch.ng',
-      phone_number: user?.phone || '08000000000',
-      name: user?.full_name || 'AgriMatch Buyer',
-    },
-    customizations: {
-      title: `AgriMatch - ${product.crop_type}`,
-      description: `${quantity}kg of ${product.crop_type} from ${product.profiles?.full_name}`,
-    },
-  }
-
-  const handleFlutterPayment = useFlutterwave(flutterConfig)
-
   const handlePaymentClick = async () => {
     try {
       setPaymentProcessing(true)
       setError(null)
 
-      // Step 1: Create order in Supabase
-      // Store txRef as payment_ref so PaymentCallback can find this order by tx_ref
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -169,7 +142,6 @@ function ProductDetail() {
           quantity: quantity,
           total_price: total,
           status: 'pending',
-          payment_ref: txRef,
         })
         .select()
         .single()
@@ -181,34 +153,43 @@ function ProductDetail() {
         return
       }
 
-      // Step 2: Open Flutterwave modal
-      // Per docs: use callback + closePaymentModal()
+      const flutterConfig = {
+        public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
+        tx_ref: `AGRIMATCH-${orderData.id}`,
+        amount: total,
+        currency: 'NGN',
+        payment_options: 'card,mobilemoney,ussd',
+        redirect_url: `${window.location.origin}/payment-callback`,
+        customer: {
+          email: user?.email || 'buyer@agrimatch.ng',
+          phonenumber: user?.phone || '08000000000',
+          name: user?.full_name || 'AgriMatch Buyer',
+        },
+        customizations: {
+          title: `AgriMatch - ${product.crop_type}`,
+          description: `${quantity}kg of ${product.crop_type} from ${product.profiles?.full_name}`,
+        },
+      }
+
+      const handleFlutterPayment = useFlutterwave(flutterConfig)
+
       handleFlutterPayment({
-        callback: async (response) => {
-          closePaymentModal()
+        onSuccess: async (response) => {
+          await supabase
+            .from('orders')
+            .update({
+              status: 'confirmed',
+              payment_ref: String(response.transaction_id),
+            })
+            .eq('id', orderData.id)
 
-          if (response.status === 'successful' || response.status === 'completed') {
-            // Update order to confirmed
-            await supabase
-              .from('orders')
-              .update({
-                status: 'confirmed',
-                payment_ref: String(response.transaction_id),
-              })
-              .eq('id', orderData.id)
+          await supabase
+            .from('listings')
+            .update({ quantity: Math.max(0, product.quantity - quantity) })
+            .eq('id', product.id)
 
-            // Reduce listing quantity
-            await supabase
-              .from('listings')
-              .update({ quantity: Math.max(0, product.quantity - quantity) })
-              .eq('id', product.id)
-
-            notify.success('Payment successful! Order confirmed.')
-            setTimeout(() => navigate(`/tracking/${orderData.id}`), 1500)
-          } else {
-            notify.error('Payment was not completed.')
-            setPaymentProcessing(false)
-          }
+          notify.success('Payment successful! Order confirmed.')
+          setTimeout(() => navigate(`/tracking/${orderData.id}`), 1500)
         },
         onClose: () => {
           setPaymentProcessing(false)
