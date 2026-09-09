@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { LeafIcon } from '../components/NavIcons'
 import { motion } from 'framer-motion'
 
 const fadeUp = {
@@ -44,9 +45,10 @@ function Landing() {
     <div className="min-h-screen bg-[var(--color-background-warm)]">
       {/* Header */}
       <header className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-10 py-5 bg-[var(--color-primary-dark)] backdrop-blur-sm border-b border-black/10">
-        <span className="font-[var(--font-heading)] italic text-2xl text-white">
-          AgriMatch
-        </span>
+        <span className="font-[var(--font-heading)] italic text-2xl text-white flex items-center gap-2">
+  <LeafIcon className="text-[var(--color-primary-light)]" />
+  AgriMatch
+</span>
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
           <Link to="/marketplace" className="text-white/80 hover:text-white transition-colors">Marketplace</Link>
           <Link to="/dashboard" className="text-white/80 hover:text-white transition-colors">Dashboard</Link>

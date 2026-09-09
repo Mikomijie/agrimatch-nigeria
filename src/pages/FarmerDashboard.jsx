@@ -9,6 +9,7 @@ import ChatWindow from '../components/ChatWindow'
 import ConversationList from '../components/ConversationList'
 import FarmerOrders from '../components/FarmerOrders'
 import ConfirmModal from '../components/ConfirmModal'
+import { MarketIcon, MessagesIcon, OrdersIcon, LogisticsIcon } from '../components/NavIcons'
 
 const CROPS = [
   { id: 'Tomatoes', label: 'Tomatoes', image: '/images/produce/tomatoes.jpg' },
@@ -352,41 +353,41 @@ function FarmerDashboard() {
 
         {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-          <Link
-            to="/marketplace"
-            className={`flex flex-col items-center text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-          >
-            <span className="text-lg">🛒</span>Market
-          </Link>
-          <button
-            onClick={() => setShowChat(true)}
-            className="relative flex flex-col items-center text-xs text-[var(--color-charcoal)]/60"
-          >
-            <span className="text-lg">💬</span>Messages
-            {unreadMessages > 0 && (
-              <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                {unreadMessages}
-              </span>
-            )}
-          </button>
-          <Link
-            to="/buyer-orders"
-            className={`relative flex flex-col items-center text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-          >
-            <span className="text-lg">📦</span>Orders
-            {pendingOrders > 0 && (
-              <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                {pendingOrders}
-              </span>
-            )}
-          </Link>
-          <Link
-            to="/logistics"
-            className={`flex flex-col items-center text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-          >
-            <span className="text-lg">🚛</span>Logistics
-          </Link>
-        </nav>
+  <Link
+    to="/marketplace"
+    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <MarketIcon />Market
+  </Link>
+  <button
+    onClick={() => setShowChat(true)}
+    className="relative flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
+  >
+    <MessagesIcon />Messages
+    {unreadMessages > 0 && (
+      <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+        {unreadMessages}
+      </span>
+    )}
+  </button>
+  <Link
+    to="/buyer-orders"
+    className={`relative flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <OrdersIcon />Orders
+    {pendingOrders > 0 && (
+      <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+        {pendingOrders}
+      </span>
+    )}
+  </Link>
+  <Link
+    to="/logistics"
+    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <LogisticsIcon />Logistics
+  </Link>
+</nav>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12 pb-24 md:pb-12">

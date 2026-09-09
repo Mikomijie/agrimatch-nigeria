@@ -10,6 +10,7 @@ import FarmerMap from '../components/FarmerMap'
 import ChatWindow from '../components/ChatWindow'
 import ConversationList from '../components/ConversationList'
 import SkeletonCard from '../components/SkeletonCard'
+import { HomeIcon, OrdersIcon, LogisticsIcon, SwitchIcon } from '../components/NavIcons'
 
 const CROP_TYPES = ['Tomatoes', 'Peppers', 'Garden Eggs', 'Okra']
 const REGIONS = [
@@ -307,31 +308,31 @@ function BuyerMarketplace() {
         {/* Mobile bottom nav with active states */}
         {user && (
           <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-            <Link
-              to="/dashboard"
-              className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-            >
-              <span className="text-lg">🏠</span>Dashboard
-            </Link>
-            <Link
-              to="/buyer-orders"
-              className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-            >
-              <span className="text-lg">📦</span>Orders
-            </Link>
-            <Link
-              to="/logistics"
-              className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-            >
-              <span className="text-lg">🚛</span>Logistics
-            </Link>
-            <button
-              onClick={() => navigate('/role-switch')}
-              className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
-            >
-              <span className="text-lg">🔄</span>Switch
-            </button>
-          </nav>
+  <Link
+    to="/dashboard"
+    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <HomeIcon />Dashboard
+  </Link>
+  <Link
+    to="/buyer-orders"
+    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <OrdersIcon />Orders
+  </Link>
+  <Link
+    to="/logistics"
+    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <LogisticsIcon />Logistics
+  </Link>
+  <button
+    onClick={() => navigate('/role-switch')}
+    className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
+  >
+    <SwitchIcon />Switch
+  </button>
+</nav>
         )}
       </header>
 

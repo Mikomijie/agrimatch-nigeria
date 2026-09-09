@@ -7,6 +7,7 @@ import ReviewModal from '../components/ReviewModal'
 import ConfirmModal from '../components/ConfirmModal'
 import { cancelOrder } from '../lib/orderHelpers'
 import { notify } from '../lib/notifications'
+import { HomeIcon, MarketIcon, OrdersIcon, LogisticsIcon } from '../components/NavIcons'
 
 const STATUS_COLORS = {
   pending: 'text-[var(--color-secondary-dark)]',
@@ -183,31 +184,31 @@ function BuyerOrderHistory() {
 
         {/* Mobile bottom nav with active states */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-          <Link
-            to="/dashboard"
-            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-          >
-            <span className="text-lg">🏠</span>Dashboard
-          </Link>
-          <Link
-            to="/marketplace"
-            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-          >
-            <span className="text-lg">🛒</span>Market
-          </Link>
-          <Link
-            to="/buyer-orders"
-            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-          >
-            <span className="text-lg">📦</span>Orders
-          </Link>
-          <Link
-            to="/logistics"
-            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-          >
-            <span className="text-lg">🚛</span>Logistics
-          </Link>
-        </nav>
+  <Link
+    to="/dashboard"
+    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <HomeIcon />Dashboard
+  </Link>
+  <Link
+    to="/marketplace"
+    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <MarketIcon />Market
+  </Link>
+  <Link
+    to="/buyer-orders"
+    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <OrdersIcon />Orders
+  </Link>
+  <Link
+    to="/logistics"
+    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+  >
+    <LogisticsIcon />Logistics
+  </Link>
+</nav>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12 pb-24 md:pb-12">
