@@ -28,6 +28,7 @@ function PinIcon() {
 // Separate payment component — this is the key fix
 // By isolating useFlutterwave in its own component, we can pass the correct tx_ref
 function PayButton({ orderId, total, product, quantity, user, onClose }) {
+  const navigate = useNavigate()
   const config = {
     public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
     tx_ref: `AGRIMATCH-${orderId}`,
@@ -66,7 +67,8 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
             .update({ quantity: Math.max(0, product.quantity - quantity) })
             .eq('id', product.id)
 
-          notify.success('Payment successful! Order confirmed.')
+             notify.success('Payment successful! Order confirmed.')
+          setTimeout(() => navigate(`/tracking/${orderId}`), 1500)
         } else {
           notify.error('Payment was not completed.')
           onClose()
@@ -157,11 +159,6 @@ function ProductDetail() {
     return () => clearInterval(interval)
   }, [product])
 
-  // After payment success, navigate to tracking
-  useEffect(() => {
-    if (!pendingOrderId || paymentProcessing) return
-    navigate(`/tracking/${pendingOrderId}`)
-  }, [pendingOrderId, paymentProcessing])
 
   if (loading) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
