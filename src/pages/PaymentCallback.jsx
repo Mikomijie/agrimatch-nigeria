@@ -54,7 +54,18 @@ function PaymentCallback() {
         return
       }
 
-      const orderId = txRef.replace('AGRIMATCH-', '')
+      // Look up order by tx_ref since it matches payment_ref or order id
+const rawId = txRef.replace('AGRIMATCH-', '')
+
+// Check if it's a valid UUID format
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+let orderId = rawId
+
+if (!uuidRegex.test(rawId)) {
+  // Not a UUID — redirect to orders page
+  navigate('/buyer-orders')
+  return
+}
 
       if (status === 'successful' || status === 'completed') {
         const { data: orderData, error: fetchError } = await supabase

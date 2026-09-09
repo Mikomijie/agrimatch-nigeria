@@ -1,7 +1,7 @@
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useFlutterwave } from 'flutterwave-react-v3'
+import { useFlutterwave, closePaymentModal } from 'flutterwave-react-v3'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import { notify } from '../lib/notifications'
@@ -25,6 +25,67 @@ function PinIcon() {
   )
 }
 
+// Separate payment component — this is the key fix
+// By isolating useFlutterwave in its own component, we can pass the correct tx_ref
+function PayButton({ orderId, total, product, quantity, user, onClose }) {
+  const config = {
+    public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
+    tx_ref: `AGRIMATCH-${orderId}`,
+    amount: total,
+    currency: 'NGN',
+    payment_options: 'card,mobilemoney,ussd',
+    customer: {
+      email: user?.email || 'buyer@agrimatch.ng',
+      phone_number: user?.phone || '08000000000',
+      name: user?.full_name || 'AgriMatch Buyer',
+    },
+    customizations: {
+      title: `AgriMatch - ${product.crop_type}`,
+      description: `${quantity}kg of ${product.crop_type} from ${product.profiles?.full_name}`,
+    },
+  }
+
+  const handleFlutterPayment = useFlutterwave(config)
+
+  const handlePay = () => {
+    handleFlutterPayment({
+      callback: async (response) => {
+        closePaymentModal()
+
+        if (response.status === 'successful' || response.status === 'completed') {
+          await supabase
+            .from('orders')
+            .update({
+              status: 'confirmed',
+              payment_ref: String(response.transaction_id),
+            })
+            .eq('id', orderId)
+
+          await supabase
+            .from('listings')
+            .update({ quantity: Math.max(0, product.quantity - quantity) })
+            .eq('id', product.id)
+
+          notify.success('Payment successful! Order confirmed.')
+        } else {
+          notify.error('Payment was not completed.')
+          onClose()
+        }
+      },
+      onClose: () => {
+        onClose()
+      },
+    })
+  }
+
+  // Auto-open payment modal when this component mounts
+  useEffect(() => {
+    handlePay()
+  }, [])
+
+  return null
+}
+
 function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -33,10 +94,11 @@ function ProductDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [quantity, setQuantity] = useState(50)
- const [paymentProcessing, setPaymentProcessing] = useState(false)
-const [pendingOrder, setPendingOrder] = useState(null) 
+  const [paymentProcessing, setPaymentProcessing] = useState(false)
+  const [pendingOrderId, setPendingOrderId] = useState(null)
   const [moreListings, setMoreListings] = useState([])
   const [timeLeft, setTimeLeft] = useState(null)
+
   useEffect(() => {
     async function fetchProduct() {
       const { data, error } = await supabase
@@ -95,6 +157,12 @@ const [pendingOrder, setPendingOrder] = useState(null)
     return () => clearInterval(interval)
   }, [product])
 
+  // After payment success, navigate to tracking
+  useEffect(() => {
+    if (!pendingOrderId || paymentProcessing) return
+    navigate(`/tracking/${pendingOrderId}`)
+  }, [pendingOrderId, paymentProcessing])
+
   if (loading) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
       <p className="text-[var(--color-charcoal)]/60">Loading...</p>
@@ -129,53 +197,6 @@ const [pendingOrder, setPendingOrder] = useState(null)
   const logisticsFee = getTransportCost(product.location)
   const total = subtotal + logisticsFee
 
-    const flutterConfig = {
-    public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
-    tx_ref: pendingOrder ? `AGRIMATCH-${pendingOrder.id}` : `AGRIMATCH-INIT`,
-    amount: total,
-    currency: 'NGN',
-    payment_options: 'card,mobilemoney,ussd',
-    customer: {
-      email: user?.email || 'buyer@agrimatch.ng',
-      phonenumber: user?.phone || '08000000000',
-      name: user?.full_name || 'AgriMatch Buyer',
-    },
-    customizations: {
-      title: `AgriMatch - ${product.crop_type}`,
-      description: `${quantity}kg of ${product.crop_type} from ${product.profiles?.full_name}`,
-    },
-  }
-
-  const handleFlutterPayment = useFlutterwave(flutterConfig)
-
-  useEffect(() => {
-    if (!pendingOrder) return
-    handleFlutterPayment({
-      onSuccess: async (response) => {
-        await supabase
-          .from('orders')
-          .update({
-            status: 'confirmed',
-            payment_ref: String(response.transaction_id),
-          })
-          .eq('id', pendingOrder.id)
-
-        await supabase
-          .from('listings')
-          .update({ quantity: Math.max(0, product.quantity - quantity) })
-          .eq('id', product.id)
-
-        notify.success('Payment successful! Order confirmed.')
-        setTimeout(() => navigate(`/tracking/${pendingOrder.id}`), 1500)
-      },
-      onClose: () => {
-        setPaymentProcessing(false)
-        setPendingOrder(null)
-        notify.info('Payment cancelled.')
-      },
-    })
-  }, [pendingOrder])
-
   const handlePaymentClick = async () => {
     try {
       setPaymentProcessing(true)
@@ -201,7 +222,7 @@ const [pendingOrder, setPendingOrder] = useState(null)
         return
       }
 
-      setPendingOrder(orderData)
+      setPendingOrderId(orderData.id)
     } catch (err) {
       notify.error(err.message)
       setError(err.message)
@@ -211,6 +232,23 @@ const [pendingOrder, setPendingOrder] = useState(null)
 
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)]">
+
+      {/* PayButton renders and auto-opens Flutterwave when order is ready */}
+      {pendingOrderId && paymentProcessing && (
+        <PayButton
+          orderId={pendingOrderId}
+          total={total}
+          product={product}
+          quantity={quantity}
+          user={user}
+          onClose={() => {
+            setPaymentProcessing(false)
+            setPendingOrderId(null)
+            notify.info('Payment cancelled.')
+          }}
+        />
+      )}
+
       <header className="bg-[var(--color-primary-dark)] border-b border-black/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
           <div className="flex items-center justify-between gap-4">
@@ -273,7 +311,6 @@ const [pendingOrder, setPendingOrder] = useState(null)
             <p className="text-base sm:text-lg text-[var(--color-charcoal)]/70 max-w-md leading-relaxed">
               Freshly harvested produce from verified Nigerian farmers. Direct to you, no middlemen.
             </p>
-
             <div className="grid grid-cols-2 gap-6 mt-8 sm:mt-10">
               <div>
                 <p className="text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/50 uppercase mb-2">Available</p>
@@ -308,12 +345,7 @@ const [pendingOrder, setPendingOrder] = useState(null)
         </motion.div>
 
         {/* Countdown Band */}
-        <motion.div
-          className="mt-8 sm:mt-10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
+        <motion.div className="mt-8 sm:mt-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
           {product.freshness === 'Harvesting Tomorrow' || product.freshness === 'Future Harvest' ? (
             <div className="bg-[var(--color-surface)] rounded-lg p-4 sm:p-5">
               <p className="text-sm sm:text-base font-semibold text-[var(--color-charcoal)]/80">
@@ -324,9 +356,7 @@ const [pendingOrder, setPendingOrder] = useState(null)
             </div>
           ) : timeLeft === 'closed' ? (
             <div className="bg-red-50 rounded-lg p-4 sm:p-5">
-              <p className="text-sm sm:text-base font-semibold text-red-700">
-                Pickup window has closed for this listing.
-              </p>
+              <p className="text-sm sm:text-base font-semibold text-red-700">Pickup window has closed for this listing.</p>
             </div>
           ) : timeLeft ? (
             <div className={`rounded-lg p-4 sm:p-5 ${timeLeft.hours < 2 ? 'bg-red-50' : 'bg-[var(--color-secondary-light)]/25'}`}>
@@ -337,13 +367,8 @@ const [pendingOrder, setPendingOrder] = useState(null)
           ) : null}
         </motion.div>
 
-        {/* More from farmer + Order card */}
         <div className="grid md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 mt-10 sm:mt-12">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4, duration: 0.5 }}>
             <h2 className="font-[var(--font-heading)] text-xl sm:text-2xl text-[var(--color-charcoal)] mb-5">
               More from {product.profiles?.full_name}
             </h2>
@@ -353,23 +378,13 @@ const [pendingOrder, setPendingOrder] = useState(null)
               <div className="grid grid-cols-2 gap-4">
                 {moreListings.map((listing) => (
                   <motion.div key={listing.id} whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
-                    <Link
-                      to={`/product/${listing.id}`}
-                      className="block bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md border border-black/5 transition-all"
-                    >
+                    <Link to={`/product/${listing.id}`} className="block bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md border border-black/5 transition-all">
                       <div className="aspect-[4/3] bg-[var(--color-surface)] overflow-hidden">
-                        <img
-                          loading="lazy"
-                          src={listing.image_url}
-                          alt={listing.crop_type}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        />
+                        <img loading="lazy" src={listing.image_url} alt={listing.crop_type} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
                       </div>
                       <div className="p-3">
                         <p className="font-semibold text-sm text-[var(--color-charcoal)]">{listing.crop_type}</p>
-                        <p className="text-xs text-[var(--color-charcoal)]/60 mt-1">
-                          {listing.quantity}kg · ₦{Number(listing.price_per_unit).toLocaleString()}/kg
-                        </p>
+                        <p className="text-xs text-[var(--color-charcoal)]/60 mt-1">{listing.quantity}kg · ₦{Number(listing.price_per_unit).toLocaleString()}/kg</p>
                       </div>
                     </Link>
                   </motion.div>
@@ -377,12 +392,7 @@ const [pendingOrder, setPendingOrder] = useState(null)
               </div>
             )}
 
-            <motion.div
-              className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-6 mt-6 border border-black/5"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
+            <motion.div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-6 mt-6 border border-black/5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
               <p className="text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/50 uppercase mb-4">Verified Grower</p>
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
@@ -396,36 +406,16 @@ const [pendingOrder, setPendingOrder] = useState(null)
             </motion.div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4, duration: 0.5 }}>
             <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-6 sm:p-8 border border-black/5">
-              <h2 className="font-[var(--font-heading)] text-xl sm:text-2xl text-[var(--color-charcoal)] mb-6">
-                Select Order Details
-              </h2>
+              <h2 className="font-[var(--font-heading)] text-xl sm:text-2xl text-[var(--color-charcoal)] mb-6">Select Order Details</h2>
 
               <div className="mb-8">
-                <label className="block text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/60 uppercase mb-4">
-                  Quantity (kilograms)
-                </label>
+                <label className="block text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/60 uppercase mb-4">Quantity (kilograms)</label>
                 <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setQuantity((q) => Math.max(1, q - 10))}
-                    disabled={expired}
-                    className="w-12 h-12 border-2 border-black/10 rounded-lg text-xl font-bold text-[var(--color-charcoal)]/70 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    −
-                  </button>
+                  <button onClick={() => setQuantity((q) => Math.max(1, q - 10))} disabled={expired} className="w-12 h-12 border-2 border-black/10 rounded-lg text-xl font-bold text-[var(--color-charcoal)]/70 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">−</button>
                   <span className="text-3xl font-bold text-[var(--color-charcoal)] min-w-[80px] text-center">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity((q) => Math.min(product.quantity, q + 10))}
-                    disabled={expired || quantity >= product.quantity}
-                    className="w-12 h-12 border-2 border-black/10 rounded-lg text-xl font-bold text-[var(--color-charcoal)]/70 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => setQuantity((q) => Math.min(product.quantity, q + 10))} disabled={expired || quantity >= product.quantity} className="w-12 h-12 border-2 border-black/10 rounded-lg text-xl font-bold text-[var(--color-charcoal)]/70 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">+</button>
                 </div>
               </div>
 
@@ -446,9 +436,7 @@ const [pendingOrder, setPendingOrder] = useState(null)
 
               <div className="bg-[var(--color-primary-light)]/20 rounded-lg p-4 mb-6">
                 <p className="text-sm font-bold text-[var(--color-primary-dark)] mb-2">Escrow Guaranteed</p>
-                <p className="text-xs text-[var(--color-charcoal)]/70 leading-relaxed">
-                  Your payment is held securely. Funds are only released to the farmer once you confirm delivery.
-                </p>
+                <p className="text-xs text-[var(--color-charcoal)]/70 leading-relaxed">Your payment is held securely. Funds are only released to the farmer once you confirm delivery.</p>
               </div>
 
               {error && (
@@ -458,15 +446,9 @@ const [pendingOrder, setPendingOrder] = useState(null)
               )}
 
               {expired ? (
-                <div className="bg-black/5 text-[var(--color-charcoal)]/50 py-3 px-6 rounded-lg text-center font-bold">
-                  This listing has expired
-                </div>
+                <div className="bg-black/5 text-[var(--color-charcoal)]/50 py-3 px-6 rounded-lg text-center font-bold">This listing has expired</div>
               ) : paymentProcessing ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-[var(--color-primary)] text-white py-4 px-6 rounded-lg text-center"
-                >
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-[var(--color-primary)] text-white py-4 px-6 rounded-lg text-center">
                   <p className="font-bold">Processing payment...</p>
                 </motion.div>
               ) : (
