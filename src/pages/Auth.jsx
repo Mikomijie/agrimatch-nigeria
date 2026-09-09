@@ -264,15 +264,15 @@ setTimeout(() => {
   })}
 </div>
 
-            <p className="mt-8 text-sm text-[var(--color-charcoal)]/60">
-              Already have an account?{' '}
-              <button
-                onClick={() => setStep('form')}
-                className="text-[var(--color-primary)] font-bold hover:underline"
-              >
-                Log In
-              </button>
-            </p>
+           <p className="mt-8 text-sm text-[var(--color-charcoal)]/60">
+  Already have an account?{' '}
+  <button
+    onClick={() => { setMode('login'); setStep('form') }}
+    className="text-[var(--color-primary)] font-bold hover:underline"
+  >
+    Log In
+  </button>
+</p>
           </motion.div>
         ) : (
           <motion.div

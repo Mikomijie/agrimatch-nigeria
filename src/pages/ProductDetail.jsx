@@ -1,5 +1,5 @@
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useFlutterwave } from 'flutterwave-react-v3'
 import { supabase } from '../lib/supabaseClient'
@@ -34,10 +34,9 @@ function ProductDetail() {
   const [error, setError] = useState(null)
   const [quantity, setQuantity] = useState(50)
   const [paymentProcessing, setPaymentProcessing] = useState(false)
-  const [orderId, setOrderId] = useState(null)
   const [moreListings, setMoreListings] = useState([])
   const [timeLeft, setTimeLeft] = useState(null)
-  const [txRef, setTxRef] = useState(`AGRIMATCH-INIT-${Date.now()}`)
+  const pendingOrderRef = useRef(null)
 
   useEffect(() => {
     async function fetchProduct() {
@@ -46,7 +45,6 @@ function ProductDetail() {
         .select('*, profiles(full_name)')
         .eq('id', id)
         .single()
-
       if (error) {
         setError(error.message)
       } else {
@@ -76,7 +74,6 @@ function ProductDetail() {
 
   useEffect(() => {
     if (!product || product.freshness === 'Harvesting Tomorrow' || product.freshness === 'Future Harvest') return
-
     const getDeadline = () => {
       const harvestTime = new Date(product.created_at)
       if (product.freshness === 'Harvested Yesterday') {
@@ -84,7 +81,6 @@ function ProductDetail() {
       }
       return new Date(harvestTime.getTime() + 12 * 60 * 60 * 1000)
     }
-
     const update = () => {
       const diff = getDeadline() - new Date()
       if (diff <= 0) {
@@ -95,7 +91,6 @@ function ProductDetail() {
         setTimeLeft({ hours, minutes })
       }
     }
-
     update()
     const interval = setInterval(update, 60000)
     return () => clearInterval(interval)
@@ -137,7 +132,7 @@ function ProductDetail() {
 
   const flutterConfig = {
     public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
-    tx_ref: txRef,
+    tx_ref: `AGRIMATCH-PLACEHOLDER`,
     amount: total,
     currency: 'NGN',
     payment_options: 'card,mobilemoney,ussd',
@@ -158,7 +153,9 @@ function ProductDetail() {
   const handlePaymentClick = async () => {
     try {
       setPaymentProcessing(true)
+      setError(null)
 
+      // Step 1: Create order in Supabase first
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -179,42 +176,34 @@ function ProductDetail() {
         return
       }
 
-      setOrderId(orderData.id)
+      // Store order in ref so PaymentCallback can use it
+      pendingOrderRef.current = orderData
 
-      // Set the tx_ref to use the actual order UUID
-      const newTxRef = `AGRIMATCH-${orderData.id}`
-      setTxRef(newTxRef)
-
-      // Small delay to let state update
-      await new Promise((resolve) => setTimeout(resolve, 100))
-
+      // Step 2: Open Flutterwave with the real order UUID as tx_ref
       handleFlutterPayment({
+        tx_ref: `AGRIMATCH-${orderData.id}`,
         onSuccess: async (response) => {
-          const { error: updateError } = await supabase
+          // Update order status
+          await supabase
             .from('orders')
             .update({
               status: 'confirmed',
-              payment_ref: response.transaction_id,
+              payment_ref: String(response.transaction_id),
             })
             .eq('id', orderData.id)
 
+          // Reduce listing quantity
           await supabase
             .from('listings')
             .update({ quantity: Math.max(0, product.quantity - quantity) })
             .eq('id', product.id)
-
-          if (updateError) {
-            notify.error('Payment recorded but order update failed')
-            setPaymentProcessing(false)
-            return
-          }
 
           notify.success('Payment successful! Order confirmed.')
           setTimeout(() => navigate(`/tracking/${orderData.id}`), 1500)
         },
         onClose: () => {
           setPaymentProcessing(false)
-          if (orderId) navigate(`/tracking/${orderId}`)
+          notify.info('Payment cancelled.')
         },
       })
     } catch (err) {
