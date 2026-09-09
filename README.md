@@ -1,70 +1,94 @@
 # AgriMatch
 
-Live Demo: https://agrimatch-nigeria.vercel.app/
+Nigeria loses over 40% of harvested produce annually. Not from bad farming but from broken market linkages. Farmers have no guaranteed buyers before harvest. Middlemen take 60% of value. Buyers cannot verify quality or track delivery. Generic marketplaces only handle listings.
 
-AgriMatch is a farmer-to-buyer digital marketplace platform that connects smallholder vegetable farmers in Nigeria directly to buyers and transport providers, eliminating middlemen and reducing post-harvest losses. It focuses on the Jos Regional Hub in Plateau State, one of Nigeria's most important vegetable supply corridors.
+AgriMatch solves trust, logistics, and value chain coordination in one platform.
 
----
+## What Makes AgriMatch Different
 
-## The Problem
+Most agricultural platforms in Nigeria are listing boards. You post produce, someone calls you, and you figure out the rest. AgriMatch coordinates the entire transaction from listing to delivery confirmation.
 
-Nigeria loses billions of dollars annually to post-harvest losses. Smallholder farmers growing tomatoes, peppers, garden eggs, okra, and leafy greens struggle to find buyers before their produce spoils. At the same time, buyers cannot easily identify trusted suppliers, compare prices, or coordinate timely delivery. Transporters operate without a system to match loads efficiently.
+**Escrow payments.** Buyers pay into Flutterwave escrow. Farmers receive funds only after the buyer physically confirms delivery quality. No cash risk on either side.
 
-AgriMatch addresses all three sides of this problem in a single platform.
+**Order pooling.** A buyer needing 500kg but no single farmer has that much gets automatically matched across multiple verified farmers. One order, multiple sources, zero coordination overhead.
 
----
+**Future harvest pre-orders.** Farmers list crops that have not been harvested yet. Buyers reserve and pay in advance. Farmers know their income before touching a hoe.
 
-## Features
+**Verified transport with photo proof.** Transporters upload a pickup photo before moving produce and a delivery photo on arrival. No more disputes about whether produce arrived or what condition it was in.
 
-### Farmer
-- Registration and profile creation with Nigerian phone number and state
-- Produce listings with photos, quantity, price in Naira, pickup location, and freshness status
-- Inventory management with edit and delete controls
-- Real-time order notifications
-- In-app messaging with buyers
-- USSD simulator for farmers without smartphone access
+**USSD access.** Farmers in low connectivity areas can list produce and check orders via USSD the same way they check airtime balance. No smartphone required.
 
-### Buyer
-- Registration and profile creation
-- Marketplace with filtering by crop type, location, and price range
-- Interactive map view showing farmer locations across Plateau State
-- Direct messaging with farmers for negotiation
-- Order placement with quantity selection and automatic logistics fee calculation
-- Mobile Money payment via Flutterwave with escrow protection
-- Real-time order tracking across four delivery stages
-- Delivery confirmation and farmer rating system
+## How It Works
 
-### Transporter
-- Registration and profile creation
-- Available loads board showing orders awaiting pickup
-- Load acceptance and status updates from in transit to delivered
-- Job history tracking
+**For farmers.** Sign up as a farmer. List fresh produce or upcoming harvests with quantity, price, and pickup location. Receive orders directly on your dashboard. Assign a transporter for delivery. Receive payment after buyer confirms.
 
----
+**For buyers.** Browse verified listings across Nigeria. Place orders and pay via Flutterwave escrow. Track your delivery in real time with transporter photo updates. Confirm quality on arrival to release payment to the farmer. Leave a review.
 
-## Bonus Features
-
-**USSD Simulator** — Farmers without smartphones can list produce by dialing a USSD code. The simulator replicates this experience in the browser, accepts keypad input, submits directly to the same database as the web app, and reads each screen aloud to support non-literate users. A production version would use local-language audio in Hausa, Yoruba, or Igbo.
-
-**Escrow Payments** — Funds paid by buyers are held securely and only released to the farmer once the buyer confirms delivery and quality.
-
-**Smart Market Insights** — The farmer dashboard displays live market trend information for the Jos Hub to help farmers price competitively.
-
-**Geolocation Map** — The marketplace includes a map view powered by Leaflet and OpenStreetMap, showing the exact location of each farmer's produce.
-
----
+**For transporters.** Register your vehicle and coverage area. Browse available loads on the load board. Accept a job, upload a pickup photo to start delivery, upload a delivery photo on arrival. Payment releases automatically after buyer confirms.
 
 ## Tech Stack
 
-- React with React Router and Framer Motion
-- Supabase for database, authentication, and real-time subscriptions
-- Flutterwave for Mobile Money payment integration
-- Leaflet for geolocation and mapping
-- Tailwind CSS for styling
-- Vercel for deployment
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, Vite, Tailwind CSS |
+| Backend | Supabase (PostgreSQL, Auth, Realtime, Storage) |
+| Payments | Flutterwave (escrow, card, mobile money, USSD) |
+| Hosting | Pxxl |
+| Analytics | Sabilytics |
+| Email | SendByte |
+| Maps | Leaflet, OpenStreetMap |
 
----
+## AIB Ecosystem Integration
 
-## Demo Accounts
+AgriMatch is built entirely on African infrastructure.
 
-To test the platform, register as a Farmer, Buyer, or Transporter using the signup flow. Each role has a dedicated dashboard and workflow.
+**Pxxl** handles all hosting and deployments. The app is served from Pxxl's edge network with zero dependence on AWS or Vercel.
+
+**Sabilytics** tracks every user interaction including page views, orders placed, listings created, and message volume. The analytics dashboard shows real engagement data from real Nigerian users.
+
+**SendByte** sends transactional email notifications. When an order is confirmed, the buyer receives an order confirmation email and the farmer receives a new order alert automatically.
+
+## Local Development
+
+Clone the repository and install dependencies:
+npm install
+Create a `.env` file in the project root:
+
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_FLUTTERWAVE_PUBLIC_KEY=your_flutterwave_public_key
+SENDBYTE_API_KEY=your_sendbyte_api_key
+
+
+Start the development server:
+
+npm run dev
+
+
+## Database
+
+The application uses six core tables in Supabase with Row Level Security enabled on all of them.
+
+**profiles** stores user information and role (farmer, buyer, or transporter).
+
+**listings** stores farmer produce listings including crop type, quantity, price, location, freshness, and expected harvest date for future harvests.
+
+**orders** stores buyer orders with status tracking from pending through confirmed, in transit, delivered, and completed.
+
+**messages** stores real time chat between farmers and buyers linked to specific orders.
+
+**ratings** stores buyer reviews of farmers after delivery confirmation.
+
+**transporters** stores transporter vehicle registration and coverage area.
+
+## Business Model
+
+AgriMatch earns a 3% commission on every completed order collected automatically through Flutterwave before funds are released to the farmer. Farmers pay nothing to list. Buyers pay a small logistics coordination fee per order. The model scales directly with transaction volume.
+
+## Live Product
+
+The live application is available at agrimatch-nigeria.pxxlspace.cv
+
+## Built By
+
+Michael Omijie, Benin City, Edo State, Nigeria.
