@@ -33,7 +33,8 @@ function ProductDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [quantity, setQuantity] = useState(50)
-  const [paymentProcessing, setPaymentProcessing] = useState(false)
+ const [paymentProcessing, setPaymentProcessing] = useState(false)
+const [pendingOrder, setPendingOrder] = useState(null) 
   const [moreListings, setMoreListings] = useState([])
   const [timeLeft, setTimeLeft] = useState(null)
   useEffect(() => {
@@ -128,6 +129,53 @@ function ProductDetail() {
   const logisticsFee = getTransportCost(product.location)
   const total = subtotal + logisticsFee
 
+    const flutterConfig = {
+    public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
+    tx_ref: pendingOrder ? `AGRIMATCH-${pendingOrder.id}` : `AGRIMATCH-INIT`,
+    amount: total,
+    currency: 'NGN',
+    payment_options: 'card,mobilemoney,ussd',
+    customer: {
+      email: user?.email || 'buyer@agrimatch.ng',
+      phonenumber: user?.phone || '08000000000',
+      name: user?.full_name || 'AgriMatch Buyer',
+    },
+    customizations: {
+      title: `AgriMatch - ${product.crop_type}`,
+      description: `${quantity}kg of ${product.crop_type} from ${product.profiles?.full_name}`,
+    },
+  }
+
+  const handleFlutterPayment = useFlutterwave(flutterConfig)
+
+  useEffect(() => {
+    if (!pendingOrder) return
+    handleFlutterPayment({
+      onSuccess: async (response) => {
+        await supabase
+          .from('orders')
+          .update({
+            status: 'confirmed',
+            payment_ref: String(response.transaction_id),
+          })
+          .eq('id', pendingOrder.id)
+
+        await supabase
+          .from('listings')
+          .update({ quantity: Math.max(0, product.quantity - quantity) })
+          .eq('id', product.id)
+
+        notify.success('Payment successful! Order confirmed.')
+        setTimeout(() => navigate(`/tracking/${pendingOrder.id}`), 1500)
+      },
+      onClose: () => {
+        setPaymentProcessing(false)
+        setPendingOrder(null)
+        notify.info('Payment cancelled.')
+      },
+    })
+  }, [pendingOrder])
+
   const handlePaymentClick = async () => {
     try {
       setPaymentProcessing(true)
@@ -153,49 +201,7 @@ function ProductDetail() {
         return
       }
 
-      const flutterConfig = {
-        public_key: import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY,
-        tx_ref: `AGRIMATCH-${orderData.id}`,
-        amount: total,
-        currency: 'NGN',
-        payment_options: 'card,mobilemoney,ussd',
-        redirect_url: `${window.location.origin}/payment-callback`,
-        customer: {
-          email: user?.email || 'buyer@agrimatch.ng',
-          phonenumber: user?.phone || '08000000000',
-          name: user?.full_name || 'AgriMatch Buyer',
-        },
-        customizations: {
-          title: `AgriMatch - ${product.crop_type}`,
-          description: `${quantity}kg of ${product.crop_type} from ${product.profiles?.full_name}`,
-        },
-      }
-
-      const handleFlutterPayment = useFlutterwave(flutterConfig)
-
-      handleFlutterPayment({
-        onSuccess: async (response) => {
-          await supabase
-            .from('orders')
-            .update({
-              status: 'confirmed',
-              payment_ref: String(response.transaction_id),
-            })
-            .eq('id', orderData.id)
-
-          await supabase
-            .from('listings')
-            .update({ quantity: Math.max(0, product.quantity - quantity) })
-            .eq('id', product.id)
-
-          notify.success('Payment successful! Order confirmed.')
-          setTimeout(() => navigate(`/tracking/${orderData.id}`), 1500)
-        },
-        onClose: () => {
-          setPaymentProcessing(false)
-          notify.info('Payment cancelled.')
-        },
-      })
+      setPendingOrder(orderData)
     } catch (err) {
       notify.error(err.message)
       setError(err.message)
