@@ -106,8 +106,11 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
     })
   }
 
-  useEffect(() => {
-    handlePay()
+   useEffect(() => {
+    const timer = setTimeout(() => {
+      handlePay()
+    }, 100)
+    return () => clearTimeout(timer)
   }, [])
 
   return null
