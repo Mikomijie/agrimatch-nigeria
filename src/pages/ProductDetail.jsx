@@ -26,8 +26,6 @@ function PinIcon() {
   )
 }
 
-// Separate payment component — this is the key fix
-// By isolating useFlutterwave in its own component, we can pass the correct tx_ref
 function PayButton({ orderId, total, product, quantity, user, onClose }) {
   const navigate = useNavigate()
   const config = {
@@ -68,9 +66,8 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
             .update({ quantity: Math.max(0, product.quantity - quantity) })
             .eq('id', product.id)
 
-                       notify.success('Payment successful! Order confirmed.')
+          notify.success('Payment successful! Order confirmed.')
 
-          // Send emails via SendByte
           const { data: fullOrder } = await supabase
             .from('orders')
             .select('*, listings(crop_type, profiles(full_name, email)), buyer:buyer_id(full_name, email)')
@@ -109,7 +106,6 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
     })
   }
 
-  // Auto-open payment modal when this component mounts
   useEffect(() => {
     handlePay()
   }, [])
@@ -129,12 +125,13 @@ function ProductDetail() {
   const [pendingOrderId, setPendingOrderId] = useState(null)
   const [moreListings, setMoreListings] = useState([])
   const [timeLeft, setTimeLeft] = useState(null)
+  const [isVerified, setIsVerified] = useState(false) // VFR-005
 
   useEffect(() => {
     async function fetchProduct() {
       const { data, error } = await supabase
         .from('listings')
-        .select('*, profiles(full_name)')
+        .select('*, profiles(full_name, email, phone_number, farm_name, farm_region, location)')
         .eq('id', id)
         .single()
       if (error) {
@@ -142,6 +139,18 @@ function ProductDetail() {
       } else {
         setProduct(data)
         setQuantity((q) => Math.min(q, data.quantity || q))
+
+        // VFR-005: Check real verification status for this farmer
+        if (data?.farmer_id) {
+          const { data: verif } = await supabase
+            .from('verification_applications')
+            .select('status')
+            .eq('farmer_id', data.farmer_id)
+            .eq('status', 'approved')
+            .limit(1)
+            .maybeSingle()
+          setIsVerified(!!verif)
+        }
       }
       setLoading(false)
     }
@@ -187,7 +196,6 @@ function ProductDetail() {
     const interval = setInterval(update, 60000)
     return () => clearInterval(interval)
   }, [product])
-
 
   if (loading) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
@@ -259,7 +267,6 @@ function ProductDetail() {
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)]">
 
-      {/* PayButton renders and auto-opens Flutterwave when order is ready */}
       {pendingOrderId && paymentProcessing && (
         <PayButton
           orderId={pendingOrderId}
@@ -335,7 +342,7 @@ function ProductDetail() {
               {product.crop_type}
             </h1>
             <p className="text-base sm:text-lg text-[var(--color-charcoal)]/70 max-w-md leading-relaxed">
-              Freshly harvested produce from verified Nigerian farmers. Direct to you, no middlemen.
+              Freshly harvested produce from Nigerian farmers. Direct to you, no middlemen.
             </p>
             <div className="grid grid-cols-2 gap-6 mt-8 sm:mt-10">
               <div>
@@ -418,16 +425,65 @@ function ProductDetail() {
               </div>
             )}
 
-            <motion.div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-6 mt-6 border border-black/5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-              <p className="text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/50 uppercase mb-4">Verified Grower</p>
-              <div className="flex items-center gap-4">
+            {/* VFR-005: Farmer card — real status only */}
+            <motion.div
+              className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-6 mt-6 border border-black/5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              {isVerified ? (
+                <p className="text-xs font-semibold tracking-wider text-green-600 uppercase mb-4 flex items-center gap-1.5">
+                  <span>✓</span> Verified Grower
+                </p>
+              ) : (
+                <p className="text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/50 uppercase mb-4">
+                  Farmer
+                </p>
+              )}
+
+              <div className="flex items-center gap-4 mb-4">
                 <div className="w-14 h-14 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                   {product.profiles?.full_name?.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <h3 className="font-bold text-[var(--color-charcoal)] text-base">{product.profiles?.full_name}</h3>
-                  <p className="text-sm text-[var(--color-charcoal)]/60">Verified Nigerian Farmer</p>
+                  {isVerified ? (
+                    <p className="text-sm text-green-600 font-semibold">Verified Nigerian Farmer</p>
+                  ) : (
+                    <p className="text-sm text-[var(--color-charcoal)]/60">Nigerian Farmer</p>
+                  )}
                 </div>
+              </div>
+
+              {/* What verified means — shown only when badge is present (VFR-005 AC3) */}
+              {isVerified && (
+                <div className="bg-green-50 border border-green-100 rounded-lg p-3 mb-4">
+                  <p className="text-xs text-green-700 leading-relaxed">
+                    <span className="font-bold">What does verified mean?</span> AgriMatch has reviewed this farmer's farm details and photo evidence and confirmed they are a real, active farm in Nigeria.
+                  </p>
+                </div>
+              )}
+
+              <div className="border-t border-black/10 pt-4 space-y-3">
+                {product.profiles?.farm_name && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--color-charcoal)]/50 uppercase">Farm Name</p>
+                    <p className="text-sm font-semibold text-[var(--color-charcoal)] mt-1">{product.profiles.farm_name}</p>
+                  </div>
+                )}
+                {product.profiles?.farm_region && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--color-charcoal)]/50 uppercase">Region</p>
+                    <p className="text-sm font-semibold text-[var(--color-charcoal)] mt-1">{product.profiles.farm_region}</p>
+                  </div>
+                )}
+                {product.profiles?.phone_number && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--color-charcoal)]/50 uppercase">Contact</p>
+                    <p className="text-sm font-semibold text-[var(--color-charcoal)] mt-1">{product.profiles.phone_number}</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
