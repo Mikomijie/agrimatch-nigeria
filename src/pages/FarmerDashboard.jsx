@@ -25,11 +25,21 @@ const FRESHNESS_OPTIONS = [
   { id: 'Future Harvest', label: 'Future Harvest (choose date)' },
 ]
 
+const REGIONS = [
+  'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue',
+  'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu',
+  'FCT Abuja', 'Gombe', 'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina',
+  'Kebbi', 'Kogi', 'Kwara', 'Lagos', 'Nasarawa', 'Niger', 'Ogun',
+  'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba',
+  'Yobe', 'Zamfara'
+]
+
 function FarmerDashboard() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, loading: userLoading } = useCurrentUser()
 
+  // Listing states
   const [selectedCrop, setSelectedCrop] = useState('Tomatoes')
   const [freshness, setFreshness] = useState('Harvested Today')
   const [expectedHarvestDate, setExpectedHarvestDate] = useState('')
@@ -58,6 +68,29 @@ function FarmerDashboard() {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [pendingOrders, setPendingOrders] = useState(0)
   const [isFirstListing, setIsFirstListing] = useState(false)
+
+  // Farm profile states (VFR-001)
+  const [userProfile, setUserProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(true)
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [editFarmName, setEditFarmName] = useState('')
+  const [editFarmRegion, setEditFarmRegion] = useState('')
+  const [profileSubmitting, setProfileSubmitting] = useState(false)
+  const [profileError, setProfileError] = useState(null)
+
+  // Verification states (VFR-002 + VFR-004)
+  const [verificationStatus, setVerificationStatus] = useState(null)
+  const [verificationDeclineReason, setVerificationDeclineReason] = useState(null)
+  const [showVerificationForm, setShowVerificationForm] = useState(false)
+  const [showVerificationConfirmation, setShowVerificationConfirmation] = useState(false)
+  const [verifyFarmName, setVerifyFarmName] = useState('')
+  const [verifyFarmRegion, setVerifyFarmRegion] = useState('')
+  const [verifyEvidenceFile, setVerifyEvidenceFile] = useState(null)
+  const [verifyEvidencePreview, setVerifyEvidencePreview] = useState(null)
+  const [verifySubmitting, setVerifySubmitting] = useState(false)
+  const [verifyError, setVerifyError] = useState(null)
+
+  // ── Listing handlers ──────────────────────────────────────────
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
@@ -189,8 +222,168 @@ function FarmerDashboard() {
     setConfirmDelete(null)
   }
 
+  // ── Farm profile handlers (VFR-001) ──────────────────────────
+
+  const fetchUserProfile = async () => {
+    if (!user) return
+    setProfileLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, farm_name, farm_region, location, phone_number, is_profile_complete')
+        .eq('id', user.id)
+        .single()
+      if (error) throw error
+      setUserProfile(data)
+      setEditFarmName(data?.farm_name || '')
+      setEditFarmRegion(data?.farm_region || '')
+    } catch (err) {
+      console.error('Error fetching profile:', err)
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault()
+    setProfileSubmitting(true)
+    setProfileError(null)
+
+    if (!editFarmName.trim()) {
+      setProfileError('Farm name is required')
+      setProfileSubmitting(false)
+      return
+    }
+    if (!editFarmRegion) {
+      setProfileError('Farm region is required')
+      setProfileSubmitting(false)
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          farm_name: editFarmName,
+          farm_region: editFarmRegion,
+          is_profile_complete: true,
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+      notify.success('Farm profile updated!')
+      setUserProfile({ ...userProfile, farm_name: editFarmName, farm_region: editFarmRegion, is_profile_complete: true })
+      setEditingProfile(false)
+    } catch (err) {
+      setProfileError('Failed to update profile: ' + err.message)
+    } finally {
+      setProfileSubmitting(false)
+    }
+  }
+
+  // ── Verification handlers (VFR-002 + VFR-004) ────────────────
+
+  const fetchVerificationStatus = async () => {
+    if (!user) return
+    try {
+      const { data, error } = await supabase
+        .from('verification_applications')
+        .select('status, decline_reason')
+        .eq('farmer_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (error) throw error
+      setVerificationStatus(data?.status || null)
+      setVerificationDeclineReason(data?.decline_reason || null)
+    } catch (err) {
+      console.error('Error fetching verification status:', err)
+    }
+  }
+
+  const handleEvidenceSelect = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setVerifyEvidenceFile(file)
+      const reader = new FileReader()
+      reader.onload = (event) => setVerifyEvidencePreview(event.target.result)
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleVerificationSubmit = async (e) => {
+    e.preventDefault()
+    setVerifySubmitting(true)
+    setVerifyError(null)
+
+    if (!verifyFarmName.trim()) {
+      setVerifyError('Farm name is required')
+      setVerifySubmitting(false)
+      return
+    }
+    if (!verifyFarmRegion) {
+      setVerifyError('Farm region is required')
+      setVerifySubmitting(false)
+      return
+    }
+    if (!verifyEvidenceFile) {
+      setVerifyError('Please upload a photo of your farm as evidence')
+      setVerifySubmitting(false)
+      return
+    }
+
+    try {
+      const fileExt = verifyEvidenceFile.name.split('.').pop()
+      const fileName = `verification-${user.id}-${Date.now()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('produce-images')
+        .upload(fileName, verifyEvidenceFile)
+
+      if (uploadError) throw uploadError
+
+      const { data: publicUrlData } = supabase.storage
+        .from('produce-images')
+        .getPublicUrl(fileName)
+
+      const evidenceUrl = publicUrlData.publicUrl
+
+      // Always INSERT a new application — never update the old one
+      // This preserves history (VFR-004 requirement)
+      const { error: insertError } = await supabase
+        .from('verification_applications')
+        .insert({
+          farmer_id: user.id,
+          farm_name: verifyFarmName,
+          farm_region: verifyFarmRegion,
+          evidence_url: evidenceUrl,
+          status: 'pending',
+        })
+
+      if (insertError) throw insertError
+
+      setVerificationStatus('pending')
+      setVerificationDeclineReason(null)
+      setShowVerificationForm(false)
+      setShowVerificationConfirmation(true)
+      setVerifyFarmName('')
+      setVerifyFarmRegion('')
+      setVerifyEvidenceFile(null)
+      setVerifyEvidencePreview(null)
+    } catch (err) {
+      setVerifyError('Failed to submit application: ' + err.message)
+    } finally {
+      setVerifySubmitting(false)
+    }
+  }
+
+  // ── Effects ───────────────────────────────────────────────────
+
   useEffect(() => {
     if (!user) return
+    fetchUserProfile()
+    fetchVerificationStatus()
 
     async function fetchMyListings() {
       const { data } = await supabase
@@ -278,6 +471,15 @@ function FarmerDashboard() {
     return () => { document.body.style.overflow = '' }
   }, [showChat, selectedChat])
 
+  useEffect(() => {
+    if (userProfile && showVerificationForm) {
+      setVerifyFarmName(userProfile.farm_name || '')
+      setVerifyFarmRegion(userProfile.farm_region || '')
+    }
+  }, [showVerificationForm, userProfile])
+
+  // ── Early returns ─────────────────────────────────────────────
+
   if (userLoading) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
       <p className="text-[var(--color-charcoal)]/60">Loading your dashboard...</p>
@@ -293,8 +495,11 @@ function FarmerDashboard() {
     </div>
   )
 
+  const isProfileIncomplete = !userProfile?.farm_name || !userProfile?.farm_region
+
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)]">
+
       {/* Header */}
       <header className="bg-[var(--color-primary-dark)] border-b border-black/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
@@ -353,44 +558,335 @@ function FarmerDashboard() {
 
         {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-  <Link
-    to="/marketplace"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <MarketIcon />Market
-  </Link>
-  <button
-    onClick={() => setShowChat(true)}
-    className="relative flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
-  >
-    <MessagesIcon />Messages
-    {unreadMessages > 0 && (
-      <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-        {unreadMessages}
-      </span>
-    )}
-  </button>
-  <Link
-    to="/buyer-orders"
-    className={`relative flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <OrdersIcon />Orders
-    {pendingOrders > 0 && (
-      <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-        {pendingOrders}
-      </span>
-    )}
-  </Link>
-  <Link
-    to="/logistics"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <LogisticsIcon />Logistics
-  </Link>
-</nav>
+          <Link to="/marketplace" className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}>
+            <MarketIcon />Market
+          </Link>
+          <button onClick={() => setShowChat(true)} className="relative flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60">
+            <MessagesIcon />Messages
+            {unreadMessages > 0 && (
+              <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {unreadMessages}
+              </span>
+            )}
+          </button>
+          <Link to="/buyer-orders" className={`relative flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}>
+            <OrdersIcon />Orders
+            {pendingOrders > 0 && (
+              <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {pendingOrders}
+              </span>
+            )}
+          </Link>
+          <Link to="/logistics" className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}>
+            <LogisticsIcon />Logistics
+          </Link>
+        </nav>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12 pb-24 md:pb-12">
+
+        {/* INCOMPLETE PROFILE ALERT (VFR-001) */}
+        {isProfileIncomplete && !profileLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 flex items-start gap-4"
+          >
+            <span className="text-2xl flex-shrink-0">⚠️</span>
+            <div className="flex-1">
+              <p className="font-bold text-sm text-yellow-800">Complete Your Farm Profile</p>
+              <p className="text-xs text-yellow-700 mt-1">Buyers need to know about your farm. Add your farm name and region to start building trust.</p>
+            </div>
+            <button
+              onClick={() => setEditingProfile(true)}
+              className="text-xs font-bold text-white bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg transition-colors flex-shrink-0 whitespace-nowrap"
+            >
+              Complete Now
+            </button>
+          </motion.div>
+        )}
+
+        {/* FARM PROFILE CARD (VFR-001) */}
+        {!profileLoading && userProfile && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-8 bg-white rounded-xl border-2 border-black/10 p-6 sm:p-8"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase mb-2">Your Farm</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-charcoal)]">
+                  {userProfile.farm_name || 'Unnamed Farm'}
+                </h2>
+                <div className="flex flex-col gap-2 mt-3 text-sm text-[var(--color-charcoal)]/70">
+                  <p>Region: <span className="font-semibold text-[var(--color-charcoal)]">{userProfile.farm_region || 'Not specified'}</span></p>
+                  <p>Location: <span className="font-semibold text-[var(--color-charcoal)]">{userProfile.location || 'Not specified'}</span></p>
+                  <p>Contact: <span className="font-semibold text-[var(--color-charcoal)]">{userProfile.phone_number || 'Not specified'}</span></p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingProfile(true)}
+                className="text-xs font-bold text-[var(--color-primary)] hover:text-[var(--color-primary-dark)] border-2 border-[var(--color-primary)] px-4 py-2 rounded-lg transition-colors flex-shrink-0"
+              >
+                Edit Profile
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* VERIFICATION STATUS CARD (VFR-002 + VFR-004) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="mb-8 bg-white rounded-xl border-2 border-black/10 p-6 sm:p-8"
+        >
+          <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase mb-4">Verification Status</p>
+
+          {/* UNVERIFIED */}
+          {verificationStatus === null && (
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+                  <p className="font-bold text-[var(--color-charcoal)]">Unverified</p>
+                </div>
+                <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
+                  Verified farmers get a badge buyers trust. Being unverified never stops you from listing.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowVerificationForm(true)}
+                className="text-xs font-bold text-white bg-[var(--color-primary)] hover:brightness-95 px-4 py-2 rounded-lg transition-all flex-shrink-0 whitespace-nowrap"
+              >
+                Apply for Verification
+              </button>
+            </div>
+          )}
+
+          {/* PENDING */}
+          {verificationStatus === 'pending' && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block animate-pulse" />
+                <p className="font-bold text-yellow-700">Pending Review</p>
+              </div>
+              <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
+                Your application is with AgriMatch. The decision will appear here once complete. You can continue listing while you wait.
+              </p>
+            </div>
+          )}
+
+          {/* APPROVED */}
+          {verificationStatus === 'approved' && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                <p className="font-bold text-green-700">✓ Approved — Verified Farmer</p>
+              </div>
+              <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
+                Your verified badge is showing on all your listings.
+              </p>
+            </div>
+          )}
+
+          {/* DECLINED (VFR-004) */}
+          {verificationStatus === 'declined' && (
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                  <p className="font-bold text-red-700">Application Declined</p>
+                </div>
+                {verificationDeclineReason && (
+                  <div className="bg-red-50 border-2 border-red-100 rounded-lg p-4 mt-3 mb-3">
+                    <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-1">Reason from AgriMatch</p>
+                    <p className="text-sm text-red-800">{verificationDeclineReason}</p>
+                  </div>
+                )}
+                <p className="text-xs text-[var(--color-charcoal)]/60">
+                  Fix the issue above and re-apply. Your previous application is still on record.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowVerificationForm(true)}
+                className="text-xs font-bold text-white bg-[var(--color-primary)] hover:brightness-95 px-4 py-2 rounded-lg transition-all flex-shrink-0 whitespace-nowrap"
+              >
+                Re-apply
+              </button>
+            </div>
+          )}
+        </motion.div>
+
+        {/* VERIFICATION CONFIRMATION */}
+        {showVerificationConfirmation && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 bg-green-50 border-2 border-green-200 rounded-xl p-6"
+          >
+            <div className="flex items-start gap-4">
+              <span className="text-3xl flex-shrink-0">✅</span>
+              <div>
+                <p className="font-bold text-green-800 text-base mb-1">Application received</p>
+                <p className="text-sm text-green-700">
+                  AgriMatch will review your application and verify your farm details. The decision will appear in your dashboard once complete. You can continue listing while you wait.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowVerificationConfirmation(false)}
+                className="text-green-600 hover:text-green-800 font-bold text-lg flex-shrink-0 ml-auto"
+              >
+                ×
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* EDIT PROFILE MODAL (VFR-001) */}
+        {editingProfile && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-xl max-w-md w-full p-6 sm:p-8"
+            >
+              <h2 className="text-2xl font-bold text-[var(--color-charcoal)] mb-4">Edit Farm Profile</h2>
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">Farm Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFarmName}
+                    onChange={(e) => setEditFarmName(e.target.value)}
+                    className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                    placeholder="Your farm name"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">Farm Region</label>
+                  <select
+                    required
+                    value={editFarmRegion}
+                    onChange={(e) => setEditFarmRegion(e.target.value)}
+                    className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                  >
+                    <option value="">Select region</option>
+                    {REGIONS.map((r) => (<option key={r} value={r}>{r}</option>))}
+                  </select>
+                </div>
+                {profileError && (
+                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3">
+                    <p className="text-xs text-red-700 font-medium">{profileError}</p>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button type="submit" disabled={profileSubmitting} className="flex-1 bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60">
+                    {profileSubmitting ? 'Saving...' : 'Save Profile'}
+                  </button>
+                  <button type="button" onClick={() => setEditingProfile(false)} className="flex-1 border-2 border-[var(--color-charcoal)]/20 text-[var(--color-charcoal)] py-3 rounded-lg font-bold hover:bg-black/5 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* VERIFICATION APPLICATION MODAL (VFR-002 + VFR-004) */}
+        {showVerificationForm && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-xl max-w-md w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto"
+            >
+              <h2 className="text-2xl font-bold text-[var(--color-charcoal)] mb-1">
+                {verificationStatus === 'declined' ? 'Re-apply for Verification' : 'Apply for Verification'}
+              </h2>
+              <p className="text-sm text-[var(--color-charcoal)]/60 mb-6">
+                Provide your farm details and a photo as evidence. AgriMatch will review and respond.
+              </p>
+
+              <form onSubmit={handleVerificationSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">Farm Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={verifyFarmName}
+                    onChange={(e) => setVerifyFarmName(e.target.value)}
+                    className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                    placeholder="Your farm name"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">Farm Region</label>
+                  <select
+                    required
+                    value={verifyFarmRegion}
+                    onChange={(e) => setVerifyFarmRegion(e.target.value)}
+                    className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                  >
+                    <option value="">Select farm region</option>
+                    {REGIONS.map((r) => (<option key={r} value={r}>{r}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">Farm Photo Evidence</label>
+                  <p className="text-xs text-[var(--color-charcoal)]/50 mt-1 mb-2">
+                    Upload a photo taken at your farm — your crops, land, or farming setup.
+                  </p>
+                  {verifyEvidencePreview ? (
+                    <div className="relative rounded-lg overflow-hidden border-2 border-[var(--color-primary)]">
+                      <img src={verifyEvidencePreview} alt="Farm evidence" className="w-full h-40 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => { setVerifyEvidenceFile(null); setVerifyEvidencePreview(null) }}
+                        className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs font-semibold"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="block border-2 border-dashed border-black/15 rounded-lg p-6 text-center cursor-pointer hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-all">
+                      <input type="file" accept="image/*" onChange={handleEvidenceSelect} className="hidden" />
+                      <p className="text-xs font-semibold text-[var(--color-charcoal)]/80">Click to upload farm photo</p>
+                      <p className="text-xs text-[var(--color-charcoal)]/50 mt-1">JPG, PNG — clear photo of your farm</p>
+                    </label>
+                  )}
+                </div>
+
+                {verifyError && (
+                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3">
+                    <p className="text-xs text-red-700 font-medium">{verifyError}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={verifySubmitting}
+                    className="flex-1 bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60"
+                  >
+                    {verifySubmitting ? 'Submitting...' : verificationStatus === 'declined' ? 'Submit New Application' : 'Submit Application'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowVerificationForm(false); setVerifyError(null) }}
+                    className="flex-1 border-2 border-[var(--color-charcoal)]/20 text-[var(--color-charcoal)] py-3 rounded-lg font-bold hover:bg-black/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-12">
           {/* LEFT COLUMN */}
           <div className="lg:col-span-2 space-y-8 sm:space-y-10">
@@ -407,7 +903,6 @@ function FarmerDashboard() {
               </p>
             </motion.div>
 
-            {/* Onboarding tooltip for first-time farmers */}
             {isFirstListing && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -452,17 +947,10 @@ function FarmerDashboard() {
                       }`}
                     >
                       <div className="aspect-square bg-[var(--color-surface)] overflow-hidden">
-                        <img
-                          loading="lazy"
-                          src={crop.image}
-                          alt={crop.label}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        />
+                        <img loading="lazy" src={crop.image} alt={crop.label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                       </div>
                       <div className="px-2 sm:px-4 py-2 sm:py-3 bg-white text-center">
-                        <p className={`text-xs sm:text-sm font-semibold transition-colors ${
-                          selectedCrop === crop.id ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/70'
-                        }`}>
+                        <p className={`text-xs sm:text-sm font-semibold transition-colors ${selectedCrop === crop.id ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/70'}`}>
                           {crop.label}
                         </p>
                       </div>
@@ -502,382 +990,203 @@ function FarmerDashboard() {
                   <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
                     3. Quantity (kg)
                   </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      required
-                      min="1"
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full border-2 border-black/10 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
-                    />
-                    <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-[var(--color-charcoal)]/50 font-semibold text-sm">kg</span>
-                  </div>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                    placeholder="50"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
                     4. Price per kg (₦)
                   </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      required
-                      min="1"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full border-2 border-black/10 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
-                    />
-                    <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-[var(--color-charcoal)]/50 font-semibold text-sm">₦</span>
-                  </div>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                    placeholder="1000"
+                  />
                 </div>
               </div>
 
-              {/* 5. Location */}
+              {/* 5. Freshness */}
               <div>
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
-                  5. Pickup location
+                  5. Freshness
+                </label>
+                <select
+                  required
+                  value={freshness}
+                  onChange={(e) => setFreshness(e.target.value)}
+                  className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                >
+                  {FRESHNESS_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {freshness === 'Future Harvest' && (
+                <div>
+                  <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
+                    Expected Harvest Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={expectedHarvestDate}
+                    onChange={(e) => setExpectedHarvestDate(e.target.value)}
+                    className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                  />
+                </div>
+              )}
+
+              {/* 6. Pickup Location */}
+              <div>
+                <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
+                  6. Pickup location
                 </label>
                 <input
                   type="text"
                   required
                   value={pickupLocation}
                   onChange={(e) => setPickupLocation(e.target.value)}
-                  placeholder="e.g. Benin City, Edo State"
-                  className="w-full border-2 border-black/10 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
+                  className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                  placeholder="e.g., Main farm gate, Jos"
                 />
               </div>
 
-              {/* 6. Freshness */}
-              <div>
-                <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
-                  6. Freshness
-                </label>
-                <div className="space-y-2">
-                  {FRESHNESS_OPTIONS.map((opt) => (
-                    <button
-                      type="button"
-                      key={opt.id}
-                      onClick={() => setFreshness(opt.id)}
-                      className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border-2 font-medium transition-all text-left text-sm sm:text-base ${
-                        freshness === opt.id
-                          ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                          : 'border-black/10 text-[var(--color-charcoal)]/80 hover:border-[var(--color-primary)]'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                {freshness === 'Future Harvest' && (
-                  <input
-                    type="date"
-                    required
-                    value={expectedHarvestDate}
-                    onChange={(e) => setExpectedHarvestDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="mt-3 w-full border-2 border-black/10 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
-                  />
-                )}
-              </div>
-
-              {/* Alerts */}
               {error && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 sm:p-4">
-                  <p className="text-xs sm:text-sm text-red-700 font-medium">{error}</p>
-                </div>
-              )}
-
-              {success && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-[var(--color-primary-light)]/20 border-2 border-[var(--color-primary)]/30 rounded-lg p-3 sm:p-4"
-                >
-                  <p className="text-xs sm:text-sm text-[var(--color-primary-dark)] font-medium mb-3">
-                    Your listing has been published! Buyers can see it now.
-                  </p>
-                  <div className="flex gap-2">
-                    <Link
-                      to={`/product/${newListingId}`}
-                      className="text-xs font-bold text-white bg-[var(--color-primary)] px-3 py-1.5 rounded-md hover:brightness-95 transition-all"
-                    >
-                      View Listing
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => { setSuccess(false); setNewListingId(null) }}
-                      className="text-xs font-bold text-[var(--color-primary-dark)] border border-[var(--color-primary)]/40 px-3 py-1.5 rounded-md hover:bg-[var(--color-primary)]/5 transition-all"
-                    >
-                      Add Another
-                    </button>
-                  </div>
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                  <p className="text-sm text-red-700 font-medium">{error}</p>
                 </motion.div>
               )}
 
-              {/* Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
-                <button
-                  type="submit"
-                  disabled={submitting || uploading}
-                  className="flex-1 bg-[var(--color-primary)] text-white py-3 px-4 sm:px-6 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 text-sm sm:text-base"
-                >
-                  {uploading ? 'Uploading...' : submitting ? 'Publishing...' : 'Publish Listing'}
-                </button>
-                <Link
-                  to="/marketplace"
-                  className="flex-1 border-2 border-[var(--color-primary)] text-[var(--color-primary)] py-3 px-4 sm:px-6 rounded-lg font-bold hover:bg-[var(--color-primary)]/5 transition-all text-center text-sm sm:text-base"
-                >
-                  View Marketplace
-                </Link>
-              </div>
+              {success && (
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-[var(--color-primary-light)]/20 border-2 border-[var(--color-primary)]/30 rounded-lg p-4">
+                  <p className="text-sm text-[var(--color-primary-dark)] font-medium">✓ Listing published! Buyers can see it now.</p>
+                </motion.div>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting || uploading}
+                className="w-full bg-[var(--color-primary)] text-white py-4 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 text-base sm:text-lg"
+              >
+                {submitting ? 'Publishing...' : 'Publish Listing'}
+              </button>
             </form>
+
+            {/* My Listings */}
+            {myListings.length > 0 && (
+              <div className="space-y-6 sm:space-y-8 mt-12 sm:mt-16">
+                <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-charcoal)]">
+                  Your Listings ({listingCount})
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  {myListings.map((listing) => (
+                    <motion.div
+                      key={listing.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`rounded-lg sm:rounded-xl border-2 overflow-hidden transition-all ${
+                        newListingId === listing.id
+                          ? 'border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/20 shadow-lg'
+                          : 'border-black/10'
+                      } bg-white`}
+                    >
+                      {listing.image_url && (
+                        <img loading="lazy" src={listing.image_url} alt={listing.crop_type} className="w-full h-40 object-cover" />
+                      )}
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="font-bold text-[var(--color-charcoal)]">{listing.crop_type}</h3>
+                            <p className="text-xs text-[var(--color-charcoal)]/60 mt-1">{listing.freshness}</p>
+                          </div>
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${
+                            isListingExpired(listing) ? 'bg-red-100 text-red-700'
+                            : listing.quantity === 0 ? 'bg-orange-100 text-orange-700'
+                            : 'bg-green-100 text-green-700'
+                          }`}>
+                            {isListingExpired(listing) ? 'Expired' : listing.quantity === 0 ? 'Sold out' : `${listing.quantity}kg left`}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[var(--color-charcoal)]/70 mb-3">₦{listing.price_per_unit}/kg</p>
+
+                        {editingListing === listing.id ? (
+                          <div className="space-y-2 mb-3 bg-[var(--color-primary)]/5 p-3 rounded-lg">
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="number" value={editQuantity} onChange={(e) => setEditQuantity(e.target.value)} className="text-xs border-2 border-black/10 rounded px-2 py-1 focus:outline-none focus:border-[var(--color-primary)]" placeholder="Qty" />
+                              <input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="text-xs border-2 border-black/10 rounded px-2 py-1 focus:outline-none focus:border-[var(--color-primary)]" placeholder="Price" />
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => saveEdit(listing.id)} className="flex-1 text-xs font-bold bg-[var(--color-primary)] text-white py-1 rounded hover:brightness-95 transition-colors">Save</button>
+                              <button onClick={cancelEdit} className="flex-1 text-xs font-bold border-2 border-black/20 py-1 rounded hover:bg-black/5 transition-colors">Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button onClick={() => startEdit(listing)} className="flex-1 text-xs font-bold text-[var(--color-primary)] border-2 border-[var(--color-primary)] py-2 rounded hover:bg-[var(--color-primary)]/5 transition-colors">Edit</button>
+                            <button onClick={() => setConfirmDelete(listing.id)} className="flex-1 text-xs font-bold text-red-600 border-2 border-red-200 py-2 rounded hover:bg-red-50 transition-colors">Delete</button>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* RIGHT COLUMN */}
-          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-            {/* Profile Card */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-white rounded-lg sm:rounded-xl border border-black/10 p-4 sm:p-6 shadow-sm"
-            >
-              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <div className="w-12 sm:w-16 h-12 sm:h-16 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-2xl flex-shrink-0">
-                  {user?.full_name?.charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-bold text-[var(--color-charcoal)] text-sm sm:text-base truncate">{user?.full_name}</h3>
-                  <p className="text-xs text-[var(--color-charcoal)]/50 truncate">{user?.phone}</p>
-                </div>
-              </div>
-              <div className="border-t border-black/10 pt-4">
-                <p className="text-xs uppercase font-bold text-[var(--color-charcoal)]/50 mb-2">Account Role</p>
-                <p className="font-semibold text-[var(--color-charcoal)] text-sm capitalize">Farmer</p>
-              </div>
-            </motion.div>
-
-            {/* Orders Received */}
-            <FarmerOrders user={user} />
-
-            {/* Active Listings */}
-            <div className="bg-white rounded-lg sm:rounded-xl border border-black/10 p-4 sm:p-6 shadow-sm">
-              <h2 className="font-[var(--font-heading)] text-base sm:text-lg text-[var(--color-charcoal)] mb-3 sm:mb-4">My Active Listings</h2>
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[var(--color-primary-light)]/25 rounded-lg">
-                <p className="text-xs text-[var(--color-charcoal)]/60 uppercase font-bold">Total listings</p>
-                <p className="font-[var(--font-heading)] text-3xl sm:text-4xl font-bold text-[var(--color-secondary)]">{listingCount}</p>
-              </div>
-
-              {myListings.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-2xl mb-2">🌱</p>
-                  <p className="text-xs sm:text-sm text-[var(--color-charcoal)]/50">
-                    No listings yet. Publish your first harvest above.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
-                  {myListings.map((listing) => (
-                    <div
-                      key={listing.id}
-                      className={`p-2 sm:p-3 rounded-lg transition-colors ${
-                        listing.id === newListingId
-                          ? 'bg-[var(--color-secondary-light)]/25 ring-2 ring-[var(--color-secondary)]'
-                          : 'bg-[var(--color-surface)]'
-                      }`}
-                    >
-                      {editingListing === listing.id ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <img loading="lazy" src={listing.image_url} alt={listing.crop_type} className="w-10 h-10 rounded object-cover flex-shrink-0" />
-                            <p className="font-semibold text-[var(--color-charcoal)] text-xs sm:text-sm">{listing.crop_type}</p>
-                          </div>
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              value={editQuantity}
-                              onChange={(e) => setEditQuantity(e.target.value)}
-                              placeholder="Qty (kg)"
-                              className="w-1/2 border border-black/10 rounded px-2 py-1 text-xs focus:outline-none focus:border-[var(--color-primary)]"
-                            />
-                            <input
-                              type="number"
-                              value={editPrice}
-                              onChange={(e) => setEditPrice(e.target.value)}
-                              placeholder="Price/kg (₦)"
-                              className="w-1/2 border border-black/10 rounded px-2 py-1 text-xs focus:outline-none focus:border-[var(--color-primary)]"
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => saveEdit(listing.id)}
-                              className="flex-1 bg-[var(--color-primary)] text-white text-xs font-semibold py-1.5 rounded hover:brightness-95 transition-all"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={cancelEdit}
-                              className="flex-1 border border-black/10 text-[var(--color-charcoal)]/70 text-xs font-semibold py-1.5 rounded hover:bg-black/5 transition-all"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <img loading="lazy" src={listing.image_url} alt={listing.crop_type} className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-[var(--color-charcoal)] text-xs sm:text-sm truncate">
-                              {listing.crop_type}
-                              {isListingExpired(listing) && (
-                                <span className="ml-2 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">EXPIRED</span>
-                              )}
-                              {!isListingExpired(listing) && listing.quantity <= 0 && (
-                                <span className="ml-2 text-[10px] font-bold text-[var(--color-charcoal)]/60 bg-black/5 px-1.5 py-0.5 rounded">SOLD OUT</span>
-                              )}
-                            </p>
-                            <p className="text-xs text-[var(--color-charcoal)]/60">
-                              {listing.quantity}kg · ₦{Number(listing.price_per_unit).toLocaleString()}/kg
-                            </p>
-                          </div>
-                          <div className="flex gap-1 flex-shrink-0">
-                            <button
-                              onClick={() => startEdit(listing)}
-                              className="text-xs font-semibold text-[var(--color-primary)] border border-[var(--color-primary)] px-2 py-1 rounded hover:bg-[var(--color-primary)]/5 transition-all"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(listing.id)}
-                              disabled={deletingId === listing.id}
-                              className="text-xs font-semibold text-red-600 border border-red-300 px-2 py-1 rounded hover:bg-red-50 transition-all disabled:opacity-50"
-                            >
-                              {deletingId === listing.id ? '...' : 'Delete'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Market Insight */}
-            <div className="bg-white rounded-lg sm:rounded-xl border border-black/10 overflow-hidden shadow-sm">
-              <div className="aspect-video bg-[var(--color-surface)] overflow-hidden">
-                <img loading="lazy" src="/images/market/market-general.jpg" alt="Market insight" className="w-full h-full object-cover" />
-              </div>
-              <div className="p-4 sm:p-6">
-                <h3 className="font-[var(--font-heading)] text-[var(--color-charcoal)] mb-2 text-sm sm:text-base">Market Trend</h3>
-                <p className="text-xs sm:text-sm text-[var(--color-charcoal)]/70 leading-relaxed">
-                  Grade-A tomatoes trending upward across Nigeria. Buyers actively seeking quality produce.
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Tips */}
-            <div className="bg-[var(--color-primary-dark)] text-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm">
-              <h3 className="font-[var(--font-heading)] mb-3 sm:mb-4 text-sm sm:text-base">Quick Tips</h3>
-              <ul className="space-y-2 text-xs sm:text-sm">
-                <li className="flex gap-2">
-                  <span className="font-bold flex-shrink-0 text-[var(--color-primary-light)]">•</span>
-                  <span className="text-white/90">Upload clear, quality photos</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold flex-shrink-0 text-[var(--color-primary-light)]">•</span>
-                  <span className="text-white/90">Price competitively with market trends</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold flex-shrink-0 text-[var(--color-primary-light)]">•</span>
-                  <span className="text-white/90">Use Future Harvest to pre-sell your crop</span>
-                </li>
-              </ul>
-            </div>
+          <div className="lg:col-span-1 space-y-6 sm:space-y-8">
+            <FarmerOrders />
           </div>
         </div>
       </main>
 
-      {/* Order Notification Toast */}
+      {showChat && (
+        <ChatWindow
+          onClose={() => setShowChat(false)}
+          onSelectConversation={(conversation) => {
+            setSelectedChat(conversation)
+            setShowChat(false)
+          }}
+        />
+      )}
+
+      {selectedChat && (
+        <ConversationList
+          conversation={selectedChat}
+          onClose={() => setSelectedChat(null)}
+        />
+      )}
+
       {showOrderNotification && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="fixed top-6 right-6 bg-[var(--color-primary-dark)] text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-lg z-50"
+          className="fixed bottom-8 right-8 bg-[var(--color-secondary)] text-white px-6 py-4 rounded-lg font-semibold shadow-lg"
         >
-          <p className="text-sm sm:text-base font-semibold">{newOrderMessage}</p>
+          {newOrderMessage}
         </motion.div>
       )}
 
-      {/* Confirm Delete Modal */}
       {confirmDelete && (
         <ConfirmModal
-          title="Delete Listing?"
-          message="This will permanently remove this listing from the marketplace. Buyers will no longer be able to see it."
-          confirmLabel="Yes, Delete"
+          title="Delete Listing"
+          message="Are you sure you want to delete this listing? This action cannot be undone."
           onConfirm={() => deleteListing(confirmDelete)}
           onCancel={() => setConfirmDelete(null)}
         />
-      )}
-
-      {/* Chat Bubble */}
-      {!showChat && !selectedChat && (
-        <button
-          onClick={() => setShowChat(true)}
-          className="hidden md:flex fixed right-6 bottom-6 w-14 h-14 rounded-full bg-[var(--color-secondary)] text-white items-center justify-center shadow-lg hover:brightness-95 transition-all z-[9999] text-2xl"
-        >
-          💬
-          {unreadMessages > 0 && (
-            <span className="absolute -top-1 -right-1 bg-[var(--color-secondary-dark)] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-              {unreadMessages}
-            </span>
-          )}
-        </button>
-      )}
-
-      {/* Desktop Chat Panel */}
-      {(showChat || selectedChat) && (
-        <div className="hidden md:block fixed right-6 bottom-6 z-50 w-96 shadow-2xl rounded-lg overflow-hidden" style={{ height: '480px' }}>
-          {!selectedChat ? (
-            <ConversationList
-              currentUser={user}
-              onSelectConversation={(id, name) => { setSelectedChat(id); setChatName(name) }}
-              onClose={() => { setShowChat(false); setSelectedChat(null) }}
-            />
-          ) : (
-            <ChatWindow
-              conversationWith={selectedChat}
-              conversationName={chatName}
-              currentUser={user}
-              onClose={() => { setSelectedChat(null); setShowChat(false) }}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Mobile Chat Modal */}
-      {(showChat || selectedChat) && (
-        <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col" onClick={(e) => { if (e.target === e.currentTarget) { setShowChat(false); setSelectedChat(null) } }}>
-          <div className="flex flex-col bg-white rounded-t-2xl overflow-hidden mt-auto" style={{ height: '85dvh' }}>
-            {!selectedChat ? (
-              <ConversationList
-                currentUser={user}
-                onSelectConversation={(id, name) => { setSelectedChat(id); setChatName(name) }}
-                onClose={() => { setShowChat(false); setSelectedChat(null) }}
-              />
-            ) : (
-              <ChatWindow
-                conversationWith={selectedChat}
-                conversationName={chatName}
-                currentUser={user}
-                onClose={() => { setSelectedChat(null); setShowChat(false) }}
-              />
-            )}
-          </div>
-        </div>
       )}
     </div>
   )
