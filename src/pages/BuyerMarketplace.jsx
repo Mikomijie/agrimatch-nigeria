@@ -22,7 +22,10 @@ const REGIONS = [
   'Akwa Ibom', 'Ebonyi', 'Ekiti', 'Ondo', 'Osun', 'Ogun'
 ]
 
+// VFR-005: ListingCard now shows real verified badge
 function ListingCard({ listing, onMessage }) {
+  const isVerified = listing.is_verified === true
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -43,6 +46,12 @@ function ListingCard({ listing, onMessage }) {
             FRESH TODAY
           </span>
         )}
+        {/* VFR-005: Real verified badge on listing image */}
+        {isVerified && (
+          <span className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+            ✓ Verified
+          </span>
+        )}
       </div>
 
       <div className="p-4">
@@ -55,10 +64,13 @@ function ListingCard({ listing, onMessage }) {
         <p className="text-xs text-[var(--color-charcoal)]/50 mt-2">
           📍 {listing.location}
         </p>
-        <div className="mt-3 pt-3 border-t border-black/5">
+        <div className="mt-3 pt-3 border-t border-black/5 flex items-center justify-between">
           <p className="text-xs font-medium text-[var(--color-charcoal)]/80">
             {listing.profiles?.full_name}
           </p>
+          {isVerified && (
+            <span className="text-[10px] font-bold text-green-600">✓ Verified</span>
+          )}
         </div>
         <div className="mt-4 space-y-2">
           <Link
@@ -137,7 +149,26 @@ function BuyerMarketplace() {
           )
         }
 
-        setListings(filtered)
+        // VFR-005: Fetch verified farmer IDs and mark listings
+        const farmerIds = [...new Set(filtered.map((l) => l.farmer_id))]
+        let verifiedFarmerIds = new Set()
+
+        if (farmerIds.length > 0) {
+          const { data: verifiedData } = await supabase
+            .from('verification_applications')
+            .select('farmer_id')
+            .in('farmer_id', farmerIds)
+            .eq('status', 'approved')
+
+          verifiedFarmerIds = new Set((verifiedData || []).map((v) => v.farmer_id))
+        }
+
+        const listingsWithVerification = filtered.map((listing) => ({
+          ...listing,
+          is_verified: verifiedFarmerIds.has(listing.farmer_id),
+        }))
+
+        setListings(listingsWithVerification)
         setError(null)
       }
     } catch (err) {
@@ -202,7 +233,6 @@ function BuyerMarketplace() {
     return () => { document.body.style.overflow = '' }
   }, [showChat, selectedChat])
 
-  // Pull to refresh
   const handleTouchStart = (e) => {
     if (window.scrollY === 0) {
       setPullStart(e.touches[0].clientY)
@@ -251,7 +281,6 @@ function BuyerMarketplace() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Pull to refresh indicator */}
       {pulling && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4">
           <div className="bg-[var(--color-primary)] text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg">
@@ -305,34 +334,21 @@ function BuyerMarketplace() {
           )}
         </div>
 
-        {/* Mobile bottom nav with active states */}
         {user && (
           <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-  <Link
-    to="/dashboard"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <HomeIcon />Dashboard
-  </Link>
-  <Link
-    to="/buyer-orders"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <OrdersIcon />Orders
-  </Link>
-  <Link
-    to="/logistics"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <LogisticsIcon />Logistics
-  </Link>
-  <button
-    onClick={() => navigate('/role-switch')}
-    className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
-  >
-    <SwitchIcon />Switch
-  </button>
-</nav>
+            <Link to="/dashboard" className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}>
+              <HomeIcon />Dashboard
+            </Link>
+            <Link to="/buyer-orders" className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}>
+              <OrdersIcon />Orders
+            </Link>
+            <Link to="/logistics" className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}>
+              <LogisticsIcon />Logistics
+            </Link>
+            <button onClick={() => navigate('/role-switch')} className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60">
+              <SwitchIcon />Switch
+            </button>
+          </nav>
         )}
       </header>
 
@@ -340,8 +356,9 @@ function BuyerMarketplace() {
         <div className="flex flex-wrap items-start justify-between gap-4 mb-6 sm:mb-8">
           <div className="flex-1">
             <h1 className="font-[var(--font-heading)] text-3xl md:text-4xl text-[var(--color-charcoal)]">Marketplace</h1>
+            {/* VFR-005: Header no longer claims everything is verified */}
             <p className="mt-1 text-[var(--color-charcoal)]/60 text-sm">
-              Browse fresh produce from verified farmers across Nigeria.
+              Fresh produce from Nigerian farmers. Look for the ✓ Verified badge.
             </p>
 
             <div className="mt-4 flex gap-2 max-w-md">
@@ -361,57 +378,43 @@ function BuyerMarketplace() {
                 </button>
               )}
             </div>
-
-            <Link
-              to="/bulk-order"
-              className="inline-block mt-3 text-sm font-semibold text-[var(--color-primary)] underline hover:no-underline"
-            >
-              Need a large quantity? Request a bulk order →
-            </Link>
           </div>
 
-          <div className="flex gap-2 flex-shrink-0 flex-wrap mt-2">
+          <div className="flex items-center gap-3 mt-1">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="md:hidden relative px-4 py-2 border border-black/10 rounded-md text-sm font-medium hover:bg-black/5 transition-colors"
-            >
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-[var(--color-secondary)] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${
-                viewMode === 'list'
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                showFilters || activeFilterCount > 0
                   ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                  : 'border-black/10 text-[var(--color-charcoal)]/70'
+                  : 'bg-white text-[var(--color-charcoal)]/70 border-black/10 hover:border-[var(--color-primary)]/40'
               }`}
             >
-              List
+              Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
             </button>
-            <button
-              onClick={() => setViewMode('map')}
-              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${
-                viewMode === 'map'
-                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                  : 'border-black/10 text-[var(--color-charcoal)]/70'
-              }`}
-            >
-              Map
-            </button>
+            <div className="flex border border-black/10 rounded-lg overflow-hidden bg-white">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-2 text-sm transition-colors ${viewMode === 'list' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-charcoal)]/60 hover:bg-black/5'}`}
+              >
+                List
+              </button>
+              <button
+                onClick={() => setViewMode('map')}
+                className={`px-3 py-2 text-sm transition-colors ${viewMode === 'map' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-charcoal)]/60 hover:bg-black/5'}`}
+              >
+                Map
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 sm:gap-8">
           <motion.aside
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className={`${showFilters ? 'block' : 'hidden'} md:block md:col-span-1 space-y-6`}
+            initial={false}
+            animate={{ height: showFilters ? 'auto' : 0, opacity: showFilters ? 1 : 0 }}
+            className={`md:col-span-1 overflow-hidden md:overflow-visible md:opacity-100 md:h-auto ${showFilters ? 'block' : 'hidden md:block'}`}
           >
-            <div className="bg-white rounded-lg p-5 space-y-5 shadow-sm">
+            <div className="bg-white rounded-xl border border-black/5 p-5 space-y-5 shadow-sm">
               <div>
                 <label className="text-xs font-semibold tracking-wide text-[var(--color-charcoal)]/50 uppercase">Crop Type</label>
                 <select
@@ -467,7 +470,6 @@ function BuyerMarketplace() {
           </motion.aside>
 
           <div className="md:col-span-3">
-            {/* Skeleton loading */}
             {loading && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(6)].map((_, i) => (
@@ -476,7 +478,6 @@ function BuyerMarketplace() {
               </div>
             )}
 
-            {/* Error state */}
             {!loading && error && (
               <div className="text-center py-12">
                 <p className="text-4xl mb-4">⚠️</p>
@@ -490,7 +491,6 @@ function BuyerMarketplace() {
               </div>
             )}
 
-            {/* Empty state */}
             {!loading && !error && listings.length === 0 && (
               <div className="text-center py-16">
                 <p className="text-5xl mb-4">🌾</p>
