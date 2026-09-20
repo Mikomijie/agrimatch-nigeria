@@ -1,3 +1,4 @@
+const APP_DOMAIN = import.meta.env.VITE_APP_DOMAIN || 'https://agrimatch.pxxl.pro'
 export async function sendEmail({ to, subject, html }) {
   try {
     const response = await fetch('/api/sendbyte', {
@@ -32,7 +33,7 @@ export function orderConfirmedEmail({ buyerName, farmerName, cropType, quantity,
 
         <p style="color: #555;">Your produce is being prepared for delivery. You can track your order in the AgriMatch app.</p>
 
-        <a href="https://agrimatch.pxxl.pro/tracking/${orderId}"
+        <a href="${APP_DOMAIN}/tracking/${orderId}"
           style="display: inline-block; margin-top: 16px; background: #1F5C3F; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
           Track My Order
         </a>
@@ -60,7 +61,7 @@ export function newOrderFarmerEmail({ farmerName, buyerName, cropType, quantity,
 
         <p style="color: #555;">Log in to AgriMatch to confirm this order and arrange pickup.</p>
 
-        <a href="https://agrimatch.pxxl.pro/dashboard"
+        <a href="${APP_DOMAIN}/dashboard"
           style="display: inline-block; margin-top: 16px; background: #1F5C3F; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
           View My Dashboard
         </a>
