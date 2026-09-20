@@ -34,6 +34,13 @@ const REGIONS = [
   'Yobe', 'Zamfara'
 ]
 
+function randomString(len = 12) {
+  return Array.from(crypto.getRandomValues(new Uint8Array(len)))
+    .map(b => b.toString(36).padStart(2, '0'))
+    .join('')
+    .slice(0, len)
+}
+
 function FarmerDashboard() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -81,6 +88,8 @@ function FarmerDashboard() {
   // Verification states (VFR-002 + VFR-004)
   const [verificationStatus, setVerificationStatus] = useState(null)
   const [verificationDeclineReason, setVerificationDeclineReason] = useState(null)
+  const [verificationFetchError, setVerificationFetchError] = useState(false) // Fix 2
+  const [applicationHistory, setApplicationHistory] = useState([]) // Fix 1
   const [showVerificationForm, setShowVerificationForm] = useState(false)
   const [showVerificationConfirmation, setShowVerificationConfirmation] = useState(false)
   const [verifyFarmName, setVerifyFarmName] = useState('')
@@ -263,12 +272,12 @@ function FarmerDashboard() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: user.id,
           farm_name: editFarmName,
           farm_region: editFarmRegion,
           is_profile_complete: true,
-        })
-        .eq('id', user.id)
+        }, { onConflict: 'id' })
 
       if (error) throw error
       notify.success('Farm profile updated!')
@@ -283,22 +292,33 @@ function FarmerDashboard() {
 
   // ── Verification handlers (VFR-002 + VFR-004) ────────────────
 
+  // Fix 1 + Fix 2: fetch ALL applications for history, handle fetch errors explicitly
   const fetchVerificationStatus = async () => {
     if (!user) return
+    setVerificationFetchError(false)
     try {
       const { data, error } = await supabase
         .from('verification_applications')
-        .select('status, decline_reason')
+        .select('status, decline_reason, created_at')
         .eq('farmer_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
 
       if (error) throw error
-      setVerificationStatus(data?.status || null)
-      setVerificationDeclineReason(data?.decline_reason || null)
+
+      // Most recent application drives the status card
+      const latest = data?.[0] || null
+      setVerificationStatus(latest?.status || null)
+      setVerificationDeclineReason(latest?.decline_reason || null)
+
+      // Full history for display after re-applying (Fix 1)
+      setApplicationHistory(data || [])
     } catch (err) {
       console.error('Error fetching verification status:', err)
+      // Fix 2: set error flag instead of silently showing unverified
+      setVerificationFetchError(true)
+      setVerificationStatus(null)
+      setVerificationDeclineReason(null)
+      setApplicationHistory([])
     }
   }
 
@@ -333,9 +353,33 @@ function FarmerDashboard() {
       return
     }
 
+    // Server-side check — no pending application
+    try {
+      const { data: existing, error: checkError } = await supabase
+        .from('verification_applications')
+        .select('status')
+        .eq('farmer_id', user.id)
+        .eq('status', 'pending')
+        .maybeSingle()
+
+      if (checkError) throw checkError
+
+      if (existing) {
+        setVerifyError('You already have a pending application. Please wait for the review to complete.')
+        setVerifySubmitting(false)
+        return
+      }
+    } catch (err) {
+      setVerifyError('Could not verify application status. Please try again.')
+      setVerifySubmitting(false)
+      return
+    }
+
+    let uploadedFileName = null
     try {
       const fileExt = verifyEvidenceFile.name.split('.').pop()
-      const fileName = `verification-${user.id}-${Date.now()}.${fileExt}`
+      const fileName = `verification-${randomString(16)}.${fileExt}`
+      uploadedFileName = fileName
 
       const { error: uploadError } = await supabase.storage
         .from('produce-images')
@@ -349,8 +393,6 @@ function FarmerDashboard() {
 
       const evidenceUrl = publicUrlData.publicUrl
 
-      // Always INSERT a new application — never update the old one
-      // This preserves history (VFR-004 requirement)
       const { error: insertError } = await supabase
         .from('verification_applications')
         .insert({
@@ -361,7 +403,10 @@ function FarmerDashboard() {
           status: 'pending',
         })
 
-      if (insertError) throw insertError
+      if (insertError) {
+        await supabase.storage.from('produce-images').remove([uploadedFileName])
+        throw insertError
+      }
 
       setVerificationStatus('pending')
       setVerificationDeclineReason(null)
@@ -371,6 +416,8 @@ function FarmerDashboard() {
       setVerifyFarmRegion('')
       setVerifyEvidenceFile(null)
       setVerifyEvidencePreview(null)
+      // Refresh history so new pending shows
+      fetchVerificationStatus()
     } catch (err) {
       setVerifyError('Failed to submit application: ' + err.message)
     } finally {
@@ -422,7 +469,18 @@ function FarmerDashboard() {
       )
       .subscribe()
 
-    return () => supabase.removeChannel(ordersChannel)
+    const verificationChannel = supabase
+      .channel('farmer-verification-status')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'verification_applications', filter: `farmer_id=eq.${user.id}` },
+        () => fetchVerificationStatus()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(ordersChannel)
+      supabase.removeChannel(verificationChannel)
+    }
   }, [user, success])
 
   useEffect(() => {
@@ -645,8 +703,21 @@ function FarmerDashboard() {
         >
           <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase mb-4">Verification Status</p>
 
+          {/* Fix 2: Fetch error — show neither Apply nor any status claim */}
+          {verificationFetchError && (
+            <div className="flex items-start gap-3">
+              <span className="w-2 h-2 rounded-full bg-gray-300 inline-block mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-[var(--color-charcoal)]/70">Status unavailable</p>
+                <p className="text-xs text-[var(--color-charcoal)]/50 mt-1">
+                  Could not load your verification status. Please refresh the page to try again.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* UNVERIFIED */}
-          {verificationStatus === null && (
+          {!verificationFetchError && verificationStatus === null && (
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -667,7 +738,7 @@ function FarmerDashboard() {
           )}
 
           {/* PENDING */}
-          {verificationStatus === 'pending' && (
+          {!verificationFetchError && verificationStatus === 'pending' && (
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block animate-pulse" />
@@ -680,7 +751,7 @@ function FarmerDashboard() {
           )}
 
           {/* APPROVED */}
-          {verificationStatus === 'approved' && (
+          {!verificationFetchError && verificationStatus === 'approved' && (
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
@@ -693,13 +764,14 @@ function FarmerDashboard() {
           )}
 
           {/* DECLINED (VFR-004) */}
-          {verificationStatus === 'declined' && (
+          {!verificationFetchError && verificationStatus === 'declined' && (
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
                   <p className="font-bold text-red-700">Application Declined</p>
                 </div>
+                {/* Fix 3: only show reason box if reason actually exists */}
                 {verificationDeclineReason && (
                   <div className="bg-red-50 border-2 border-red-100 rounded-lg p-4 mt-3 mb-3">
                     <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-1">Reason from AgriMatch</p>
@@ -707,7 +779,10 @@ function FarmerDashboard() {
                   </div>
                 )}
                 <p className="text-xs text-[var(--color-charcoal)]/60">
-                  Fix the issue above and re-apply. Your previous application is still on record.
+                  {verificationDeclineReason
+                    ? 'Fix the issue above and re-apply. Your previous application is still on record.'
+                    : 'Your application was declined. You can re-apply below. Your previous application is still on record.'
+                  }
                 </p>
               </div>
               <button
@@ -716,6 +791,38 @@ function FarmerDashboard() {
               >
                 Re-apply
               </button>
+            </div>
+          )}
+
+          {/* Fix 1: Application history — visible after re-applying */}
+          {!verificationFetchError && applicationHistory.length > 1 && (
+            <div className="mt-6 border-t border-black/10 pt-5">
+              <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/50 uppercase mb-3">Application History</p>
+              <div className="space-y-3">
+                {applicationHistory.map((app, index) => (
+                  <div key={index} className="flex items-start gap-3 bg-[var(--color-background-warm)] rounded-lg p-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                          app.status === 'approved' ? 'bg-green-100 text-green-700'
+                          : app.status === 'declined' ? 'bg-red-100 text-red-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {app.status === 'approved' ? '✓ Approved' : app.status === 'declined' ? 'Declined' : 'Pending'}
+                        </span>
+                        <p className="text-xs text-[var(--color-charcoal)]/40">
+                          {new Date(app.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      {app.decline_reason && (
+                        <p className="text-xs text-[var(--color-charcoal)]/60 mt-1">
+                          Reason: {app.decline_reason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </motion.div>
@@ -888,13 +995,8 @@ function FarmerDashboard() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-12">
-          {/* LEFT COLUMN */}
           <div className="lg:col-span-2 space-y-8 sm:space-y-10">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <h1 className="font-[var(--font-heading)] text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-[var(--color-charcoal)] mb-3 sm:mb-4">
                 List your fresh <span className="text-[var(--color-primary)] italic">harvest.</span>
               </h1>
@@ -904,11 +1006,7 @@ function FarmerDashboard() {
             </motion.div>
 
             {isFirstListing && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-[var(--color-secondary)]/10 border-2 border-[var(--color-secondary)]/30 rounded-xl p-4 flex items-start gap-3"
-              >
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-[var(--color-secondary)]/10 border-2 border-[var(--color-secondary)]/30 rounded-xl p-4 flex items-start gap-3">
                 <span className="text-2xl flex-shrink-0">👋</span>
                 <div>
                   <p className="font-bold text-sm text-[var(--color-secondary-dark)]">Welcome to AgriMatch!</p>
@@ -920,17 +1018,12 @@ function FarmerDashboard() {
             )}
 
             <form onSubmit={handlePublish} className="space-y-6 sm:space-y-8">
-              {/* 1. Crop Selection */}
               <div className="relative">
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-3 sm:mb-5">
                   1. What are you selling?
                 </label>
                 {isFirstListing && (
-                  <motion.div
-                    animate={{ y: [0, -6, 0] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                    className="absolute -top-2 -right-2 text-[var(--color-secondary)] text-xl"
-                  >
+                  <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="absolute -top-2 -right-2 text-[var(--color-secondary)] text-xl">
                     👆
                   </motion.div>
                 )}
@@ -959,7 +1052,6 @@ function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* 2. Image Upload */}
               <div>
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
                   2. Upload photo (optional)
@@ -967,11 +1059,7 @@ function FarmerDashboard() {
                 {imagePreview ? (
                   <div className="relative rounded-lg sm:rounded-xl overflow-hidden border-2 border-[var(--color-primary)]">
                     <img loading="lazy" src={imagePreview} alt="Preview" className="w-full h-40 sm:h-64 object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => { setImageFile(null); setImagePreview(null) }}
-                      className="absolute top-2 right-2 bg-[var(--color-secondary-dark)] text-white px-2 sm:px-3 py-1 rounded text-xs font-semibold hover:brightness-95 transition-colors"
-                    >
+                    <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }} className="absolute top-2 right-2 bg-[var(--color-secondary-dark)] text-white px-2 sm:px-3 py-1 rounded text-xs font-semibold hover:brightness-95 transition-colors">
                       Remove
                     </button>
                   </div>
@@ -984,83 +1072,34 @@ function FarmerDashboard() {
                 )}
               </div>
 
-              {/* 3 & 4. Quantity & Price */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
-                    3. Quantity (kg)
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                    placeholder="50"
-                  />
+                  <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">3. Quantity (kg)</label>
+                  <input type="number" required min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white" placeholder="50" />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
-                    4. Price per kg (₦)
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                    placeholder="1000"
-                  />
+                  <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">4. Price per kg (₦)</label>
+                  <input type="number" required min="1" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white" placeholder="1000" />
                 </div>
               </div>
 
-              {/* 5. Freshness */}
               <div>
-                <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
-                  5. Freshness
-                </label>
-                <select
-                  required
-                  value={freshness}
-                  onChange={(e) => setFreshness(e.target.value)}
-                  className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                >
-                  {FRESHNESS_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
+                <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">5. Freshness</label>
+                <select required value={freshness} onChange={(e) => setFreshness(e.target.value)} className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white">
+                  {FRESHNESS_OPTIONS.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
                 </select>
               </div>
 
               {freshness === 'Future Harvest' && (
                 <div>
-                  <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
-                    Expected Harvest Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={expectedHarvestDate}
-                    onChange={(e) => setExpectedHarvestDate(e.target.value)}
-                    className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                  />
+                  <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">Expected Harvest Date</label>
+                  <input type="date" required value={expectedHarvestDate} onChange={(e) => setExpectedHarvestDate(e.target.value)} className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white" />
                 </div>
               )}
 
-              {/* 6. Pickup Location */}
               <div>
-                <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
-                  6. Pickup location
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={pickupLocation}
-                  onChange={(e) => setPickupLocation(e.target.value)}
-                  className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                  placeholder="e.g., Main farm gate, Jos"
-                />
+                <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">6. Pickup location</label>
+                <input type="text" required value={pickupLocation} onChange={(e) => setPickupLocation(e.target.value)} className="w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white" placeholder="e.g., Main farm gate, Jos" />
               </div>
 
               {error && (
@@ -1075,32 +1114,21 @@ function FarmerDashboard() {
                 </motion.div>
               )}
 
-              <button
-                type="submit"
-                disabled={submitting || uploading}
-                className="w-full bg-[var(--color-primary)] text-white py-4 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 text-base sm:text-lg"
-              >
+              <button type="submit" disabled={submitting || uploading} className="w-full bg-[var(--color-primary)] text-white py-4 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 text-base sm:text-lg">
                 {submitting ? 'Publishing...' : 'Publish Listing'}
               </button>
             </form>
 
-            {/* My Listings */}
             {myListings.length > 0 && (
               <div className="space-y-6 sm:space-y-8 mt-12 sm:mt-16">
-                <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-charcoal)]">
-                  Your Listings ({listingCount})
-                </h2>
+                <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-charcoal)]">Your Listings ({listingCount})</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   {myListings.map((listing) => (
                     <motion.div
                       key={listing.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`rounded-lg sm:rounded-xl border-2 overflow-hidden transition-all ${
-                        newListingId === listing.id
-                          ? 'border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/20 shadow-lg'
-                          : 'border-black/10'
-                      } bg-white`}
+                      className={`rounded-lg sm:rounded-xl border-2 overflow-hidden transition-all ${newListingId === listing.id ? 'border-[var(--color-primary)] ring-2 ring-[var(--color-primary)]/20 shadow-lg' : 'border-black/10'} bg-white`}
                     >
                       {listing.image_url && (
                         <img loading="lazy" src={listing.image_url} alt={listing.crop_type} className="w-full h-40 object-cover" />
@@ -1111,16 +1139,11 @@ function FarmerDashboard() {
                             <h3 className="font-bold text-[var(--color-charcoal)]">{listing.crop_type}</h3>
                             <p className="text-xs text-[var(--color-charcoal)]/60 mt-1">{listing.freshness}</p>
                           </div>
-                          <span className={`text-xs font-bold px-2 py-1 rounded ${
-                            isListingExpired(listing) ? 'bg-red-100 text-red-700'
-                            : listing.quantity === 0 ? 'bg-orange-100 text-orange-700'
-                            : 'bg-green-100 text-green-700'
-                          }`}>
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${isListingExpired(listing) ? 'bg-red-100 text-red-700' : listing.quantity === 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
                             {isListingExpired(listing) ? 'Expired' : listing.quantity === 0 ? 'Sold out' : `${listing.quantity}kg left`}
                           </span>
                         </div>
                         <p className="text-sm text-[var(--color-charcoal)]/70 mb-3">₦{listing.price_per_unit}/kg</p>
-
                         {editingListing === listing.id ? (
                           <div className="space-y-2 mb-3 bg-[var(--color-primary)]/5 p-3 rounded-lg">
                             <div className="grid grid-cols-2 gap-2">
@@ -1146,7 +1169,6 @@ function FarmerDashboard() {
             )}
           </div>
 
-          {/* RIGHT COLUMN */}
           <div className="lg:col-span-1 space-y-6 sm:space-y-8">
             <FarmerOrders />
           </div>
@@ -1154,32 +1176,16 @@ function FarmerDashboard() {
       </main>
 
       {showChat && (
-        <ChatWindow
-          onClose={() => setShowChat(false)}
-          onSelectConversation={(conversation) => {
-            setSelectedChat(conversation)
-            setShowChat(false)
-          }}
-        />
+        <ChatWindow onClose={() => setShowChat(false)} onSelectConversation={(conversation) => { setSelectedChat(conversation); setShowChat(false) }} />
       )}
-
       {selectedChat && (
-        <ConversationList
-          conversation={selectedChat}
-          onClose={() => setSelectedChat(null)}
-        />
+        <ConversationList conversation={selectedChat} onClose={() => setSelectedChat(null)} />
       )}
-
       {showOrderNotification && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-8 right-8 bg-[var(--color-secondary)] text-white px-6 py-4 rounded-lg font-semibold shadow-lg"
-        >
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="fixed bottom-8 right-8 bg-[var(--color-secondary)] text-white px-6 py-4 rounded-lg font-semibold shadow-lg">
           {newOrderMessage}
         </motion.div>
       )}
-
       {confirmDelete && (
         <ConfirmModal
           title="Delete Listing"
