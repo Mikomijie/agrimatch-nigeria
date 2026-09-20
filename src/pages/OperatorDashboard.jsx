@@ -1,24 +1,36 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import { notify } from '../lib/notifications'
 
+const OPERATOR_EMAILS = [
+  'omijiemichael435@gmail.com' // add more operator emails here
+]
+
 function OperatorDashboard() {
   const { user, loading: userLoading } = useCurrentUser()
+  const navigate = useNavigate()
 
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const [selectedApp, setSelectedApp] = useState(null)
-  const [filter, setFilter] = useState('pending') // 'pending', 'approved', 'declined', 'all'
+  const [filter, setFilter] = useState('pending')
   const [declineReason, setDeclineReason] = useState('')
   const [showDeclineForm, setShowDeclineForm] = useState(false)
   const [actionSubmitting, setActionSubmitting] = useState(false)
   const [actionError, setActionError] = useState(null)
+  const [decisionHistory, setDecisionHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+
+  // Access control — only operator emails allowed
+  const isOperator = user && OPERATOR_EMAILS.includes(user.email)
 
   const fetchApplications = async () => {
     setLoading(true)
+    setFetchError(null)
     try {
       let query = supabase
         .from('verification_applications')
@@ -34,20 +46,56 @@ function OperatorDashboard() {
       setApplications(data || [])
     } catch (err) {
       console.error('Error fetching applications:', err)
+      setFetchError('Failed to load applications. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
   }
 
+  const fetchDecisionHistory = async (applicationId) => {
+    setHistoryLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('verification_decisions')
+        .select('*')
+        .eq('application_id', applicationId)
+        .order('decided_at', { ascending: false })
+
+      if (error) throw error
+      setDecisionHistory(data || [])
+    } catch (err) {
+      console.error('Error fetching decision history:', err)
+      setDecisionHistory([])
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
   useEffect(() => {
+    if (!userLoading && !isOperator) return
     fetchApplications()
-  }, [filter])
+  }, [filter, userLoading, isOperator])
+
+  useEffect(() => {
+    if (selectedApp) {
+      fetchDecisionHistory(selectedApp.id)
+    } else {
+      setDecisionHistory([])
+    }
+  }, [selectedApp])
 
   const handleApprove = async (application) => {
+    if (!user) {
+      setActionError('You must be logged in to approve applications.')
+      return
+    }
+
     setActionSubmitting(true)
     setActionError(null)
+
     try {
-      const { error } = await supabase
+      // Update application status
+      const { error: updateError } = await supabase
         .from('verification_applications')
         .update({
           status: 'approved',
@@ -56,10 +104,24 @@ function OperatorDashboard() {
         })
         .eq('id', application.id)
 
-      if (error) throw error
+      if (updateError) throw updateError
+
+      // INSERT decision record to preserve history
+      const { error: decisionError } = await supabase
+        .from('verification_decisions')
+        .insert({
+          application_id: application.id,
+          farmer_id: application.farmer_id,
+          decision: 'approved',
+          decided_by: user.email,
+        })
+
+      if (decisionError) throw decisionError
 
       notify.success(`${application.profiles?.full_name} approved`)
       setSelectedApp(null)
+      setShowDeclineForm(false)
+      setDeclineReason('')
       fetchApplications()
     } catch (err) {
       setActionError('Failed to approve: ' + err.message)
@@ -69,15 +131,23 @@ function OperatorDashboard() {
   }
 
   const handleDecline = async (application) => {
+    if (!user) {
+      setActionError('You must be logged in to decline applications.')
+      return
+    }
+
+    // Server-side decline reason check
     if (!declineReason.trim()) {
-      setActionError('A reason is required to decline an application')
+      setActionError('A reason is required to decline an application.')
       return
     }
 
     setActionSubmitting(true)
     setActionError(null)
+
     try {
-      const { error } = await supabase
+      // Update application status
+      const { error: updateError } = await supabase
         .from('verification_applications')
         .update({
           status: 'declined',
@@ -87,9 +157,22 @@ function OperatorDashboard() {
         })
         .eq('id', application.id)
 
-      if (error) throw error
+      if (updateError) throw updateError
 
-      notify.success(`Application declined`)
+      // INSERT decision record to preserve history
+      const { error: decisionError } = await supabase
+        .from('verification_decisions')
+        .insert({
+          application_id: application.id,
+          farmer_id: application.farmer_id,
+          decision: 'declined',
+          decline_reason: declineReason,
+          decided_by: user.email,
+        })
+
+      if (decisionError) throw decisionError
+
+      notify.success('Application declined')
       setSelectedApp(null)
       setShowDeclineForm(false)
       setDeclineReason('')
@@ -115,9 +198,32 @@ function OperatorDashboard() {
     return status
   }
 
+  // Loading state
   if (userLoading) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
       <p className="text-[var(--color-charcoal)]/60">Loading...</p>
+    </div>
+  )
+
+  // Access control — not logged in
+  if (!user) return (
+    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-[var(--color-charcoal)]/60 mb-4">You must be logged in to access this page.</p>
+        <Link to="/auth" className="text-[var(--color-primary)] underline font-semibold">Go to Login</Link>
+      </div>
+    </div>
+  )
+
+  // Access control — wrong role
+  if (!isOperator) return (
+    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-4xl mb-4">🚫</p>
+        <p className="font-bold text-[var(--color-charcoal)] mb-2">Access Denied</p>
+        <p className="text-sm text-[var(--color-charcoal)]/60 mb-4">You do not have permission to access this page.</p>
+        <Link to="/" className="text-[var(--color-primary)] underline font-semibold">Go Home</Link>
+      </div>
     </div>
   )
 
@@ -181,6 +287,16 @@ function OperatorDashboard() {
           <div className="space-y-4">
             {loading ? (
               <p className="text-sm text-[var(--color-charcoal)]/50">Loading applications...</p>
+            ) : fetchError ? (
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                <p className="text-sm text-red-700 font-medium mb-3">{fetchError}</p>
+                <button
+                  onClick={fetchApplications}
+                  className="text-sm font-bold text-red-700 underline hover:no-underline"
+                >
+                  Try again
+                </button>
+              </div>
             ) : applications.length === 0 ? (
               <div className="bg-white rounded-xl border-2 border-black/10 p-8 text-center">
                 <p className="text-sm text-[var(--color-charcoal)]/50">No {filter === 'all' ? '' : filter} applications.</p>
@@ -288,33 +404,41 @@ function OperatorDashboard() {
                     </div>
                   )}
 
-                  {/* Decision history */}
-                  {selectedApp.decided_at && (
-                    <div className="border-t border-black/10 pt-5">
-                      <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/50 uppercase mb-3">Decision Record</p>
-                      <div className="bg-[var(--color-background-warm)] rounded-lg p-4 space-y-1">
-                        <p className="text-xs text-[var(--color-charcoal)]/70">
-                          <span className="font-semibold">Decision:</span> {statusLabel(selectedApp.status)}
-                        </p>
-                        <p className="text-xs text-[var(--color-charcoal)]/70">
-                          <span className="font-semibold">By:</span> {selectedApp.decided_by}
-                        </p>
-                        <p className="text-xs text-[var(--color-charcoal)]/70">
-                          <span className="font-semibold">When:</span> {new Date(selectedApp.decided_at).toLocaleString('en-NG')}
-                        </p>
-                        {selectedApp.decline_reason && (
-                          <p className="text-xs text-[var(--color-charcoal)]/70">
-                            <span className="font-semibold">Reason:</span> {selectedApp.decline_reason}
-                          </p>
-                        )}
+                  {/* Decision history — preserved across multiple decisions */}
+                  <div className="border-t border-black/10 pt-5">
+                    <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/50 uppercase mb-3">Decision History</p>
+                    {historyLoading ? (
+                      <p className="text-xs text-[var(--color-charcoal)]/40">Loading history...</p>
+                    ) : decisionHistory.length === 0 ? (
+                      <p className="text-xs text-[var(--color-charcoal)]/40">No decisions recorded yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {decisionHistory.map((d) => (
+                          <div key={d.id} className="bg-[var(--color-background-warm)] rounded-lg p-4 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded ${statusColor(d.decision)}`}>
+                                {statusLabel(d.decision)}
+                              </span>
+                              <p className="text-xs text-[var(--color-charcoal)]/40">
+                                {new Date(d.decided_at).toLocaleString('en-NG')}
+                              </p>
+                            </div>
+                            <p className="text-xs text-[var(--color-charcoal)]/70">By: {d.decided_by}</p>
+                            {d.decline_reason && (
+                              <p className="text-xs text-[var(--color-charcoal)]/70">Reason: {d.decline_reason}</p>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Decline reason form */}
                   {showDeclineForm && (
                     <div className="border-t border-black/10 pt-5">
-                      <label className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">Reason for Declining</label>
+                      <label className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">
+                        Reason for Declining <span className="text-red-500">*</span>
+                      </label>
                       <textarea
                         value={declineReason}
                         onChange={(e) => setDeclineReason(e.target.value)}
