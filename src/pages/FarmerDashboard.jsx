@@ -34,6 +34,14 @@ const REGIONS = [
   'Yobe', 'Zamfara'
 ]
 
+// Fix 2: unpredictable filename for evidence photos
+function randomString(len = 12) {
+  return Array.from(crypto.getRandomValues(new Uint8Array(len)))
+    .map(b => b.toString(36).padStart(2, '0'))
+    .join('')
+    .slice(0, len)
+}
+
 function FarmerDashboard() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -79,7 +87,7 @@ function FarmerDashboard() {
   const [profileError, setProfileError] = useState(null)
 
   // Verification states (VFR-002)
-  const [verificationStatus, setVerificationStatus] = useState(null) // null = never applied, 'pending', 'approved', 'declined'
+  const [verificationStatus, setVerificationStatus] = useState(null)
   const [showVerificationForm, setShowVerificationForm] = useState(false)
   const [showVerificationConfirmation, setShowVerificationConfirmation] = useState(false)
   const [verifyFarmName, setVerifyFarmName] = useState('')
@@ -262,12 +270,12 @@ function FarmerDashboard() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: user.id,
           farm_name: editFarmName,
           farm_region: editFarmRegion,
           is_profile_complete: true,
-        })
-        .eq('id', user.id)
+        }, { onConflict: 'id' })
 
       if (error) throw error
       notify.success('Farm profile updated!')
@@ -282,6 +290,7 @@ function FarmerDashboard() {
 
   // ── Verification handlers (VFR-002) ──────────────────────────
 
+  // Fix 1: server-side pending check before allowing new application
   const fetchVerificationStatus = async () => {
     if (!user) return
     try {
@@ -331,10 +340,34 @@ function FarmerDashboard() {
       return
     }
 
+    // Fix 1: server-side check — confirm no pending application before uploading anything
     try {
-      // Upload evidence photo
+      const { data: existing, error: checkError } = await supabase
+        .from('verification_applications')
+        .select('status')
+        .eq('farmer_id', user.id)
+        .eq('status', 'pending')
+        .maybeSingle()
+
+      if (checkError) throw checkError
+
+      if (existing) {
+        setVerifyError('You already have a pending application. Please wait for the review to complete.')
+        setVerifySubmitting(false)
+        return
+      }
+    } catch (err) {
+      setVerifyError('Could not verify application status. Please try again.')
+      setVerifySubmitting(false)
+      return
+    }
+
+    // Fix 2: unpredictable filename
+    let uploadedFileName = null
+    try {
       const fileExt = verifyEvidenceFile.name.split('.').pop()
-      const fileName = `verification-${user.id}-${Date.now()}.${fileExt}`
+      const fileName = `verification-${randomString(16)}.${fileExt}`
+      uploadedFileName = fileName
 
       const { error: uploadError } = await supabase.storage
         .from('produce-images')
@@ -359,7 +392,11 @@ function FarmerDashboard() {
           status: 'pending',
         })
 
-      if (insertError) throw insertError
+      // Fix 5: if insert fails, clean up the uploaded photo
+      if (insertError) {
+        await supabase.storage.from('produce-images').remove([uploadedFileName])
+        throw insertError
+      }
 
       setVerificationStatus('pending')
       setShowVerificationForm(false)
@@ -419,7 +456,26 @@ function FarmerDashboard() {
       )
       .subscribe()
 
-    return () => supabase.removeChannel(ordersChannel)
+    // Fix 3: realtime subscription for verification status changes
+    const verificationChannel = supabase
+      .channel('farmer-verification-status')
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'verification_applications',
+          filter: `farmer_id=eq.${user.id}`
+        },
+        () => {
+          fetchVerificationStatus()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(ordersChannel)
+      supabase.removeChannel(verificationChannel)
+    }
   }, [user, success])
 
   useEffect(() => {
@@ -468,7 +524,6 @@ function FarmerDashboard() {
     return () => { document.body.style.overflow = '' }
   }, [showChat, selectedChat])
 
-  // Pre-fill verification form with existing farm profile data
   useEffect(() => {
     if (userProfile && showVerificationForm) {
       setVerifyFarmName(userProfile.farm_name || '')
@@ -641,72 +696,57 @@ function FarmerDashboard() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mb-8 bg-white rounded-xl border-2 border-black/10 p-6 sm:p-8"
         >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase mb-2">Verification Status</p>
+          <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase mb-4">Verification Status</p>
 
-              {verificationStatus === null && (
-                <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
-                    <p className="font-bold text-[var(--color-charcoal)]">Unverified</p>
-                  </div>
-                  <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
-                    Verified farmers get a badge buyers trust. Being unverified never stops you from listing.
-                  </p>
-                </>
-              )}
-
-              {verificationStatus === 'pending' && (
-                <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block animate-pulse" />
-                    <p className="font-bold text-yellow-700">Pending Review</p>
-                  </div>
-                  <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
-                    Your application is with AgriMatch. The decision will appear here once complete.
-                  </p>
-                </>
-              )}
-
-              {verificationStatus === 'approved' && (
-                <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                    <p className="font-bold text-green-700">✓ Approved — Verified Farmer</p>
-                  </div>
-                  <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
-                    Your verified badge is showing on all your listings.
-                  </p>
-                </>
-              )}
-
-              {verificationStatus === 'declined' && (
-                <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
-                    <p className="font-bold text-red-700">Declined</p>
-                  </div>
-                  <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
-                    Your last application was declined. You can apply again below.
-                  </p>
-                </>
-              )}
-            </div>
-
-            {/* Only show apply button if not pending or approved */}
-            {(verificationStatus === null || verificationStatus === 'declined') && (
+          {/* UNVERIFIED — never applied */}
+          {verificationStatus === null && (
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+                  <p className="font-bold text-[var(--color-charcoal)]">Unverified</p>
+                </div>
+                <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
+                  Verified farmers get a badge buyers trust. Being unverified never stops you from listing.
+                </p>
+              </div>
               <button
                 onClick={() => setShowVerificationForm(true)}
                 className="text-xs font-bold text-white bg-[var(--color-primary)] hover:brightness-95 px-4 py-2 rounded-lg transition-all flex-shrink-0 whitespace-nowrap"
               >
                 Apply for Verification
               </button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* PENDING */}
+          {verificationStatus === 'pending' && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block animate-pulse" />
+                <p className="font-bold text-yellow-700">Pending Review</p>
+              </div>
+              <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
+                Your application is with AgriMatch. The decision will appear here once complete. You can continue listing while you wait.
+              </p>
+            </div>
+          )}
+
+          {/* APPROVED */}
+          {verificationStatus === 'approved' && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                <p className="font-bold text-green-700">✓ Approved — Verified Farmer</p>
+              </div>
+              <p className="text-xs text-[var(--color-charcoal)]/60 max-w-sm">
+                Your verified badge is showing on all your listings.
+              </p>
+            </div>
+          )}
         </motion.div>
 
-        {/* VERIFICATION CONFIRMATION (VFR-002) */}
+        {/* VERIFICATION CONFIRMATION */}
         {showVerificationConfirmation && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -805,7 +845,6 @@ function FarmerDashboard() {
                     placeholder="Your farm name"
                   />
                 </div>
-
                 <div>
                   <label className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">Farm Region</label>
                   <select
@@ -818,7 +857,6 @@ function FarmerDashboard() {
                     {REGIONS.map((r) => (<option key={r} value={r}>{r}</option>))}
                   </select>
                 </div>
-
                 <div>
                   <label className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">Farm Photo Evidence</label>
                   <p className="text-xs text-[var(--color-charcoal)]/50 mt-1 mb-2">Upload a photo taken at your farm — your crops, land, or farming setup.</p>
@@ -902,7 +940,6 @@ function FarmerDashboard() {
             )}
 
             <form onSubmit={handlePublish} className="space-y-6 sm:space-y-8">
-              {/* 1. Crop Selection */}
               <div className="relative">
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-3 sm:mb-5">
                   1. What are you selling?
@@ -941,7 +978,6 @@ function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* 2. Image Upload */}
               <div>
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
                   2. Upload photo (optional)
@@ -966,7 +1002,6 @@ function FarmerDashboard() {
                 )}
               </div>
 
-              {/* 3 & 4. Quantity & Price */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
@@ -998,7 +1033,6 @@ function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* 5. Freshness */}
               <div>
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
                   5. Freshness
@@ -1030,7 +1064,6 @@ function FarmerDashboard() {
                 </div>
               )}
 
-              {/* 6. Pickup Location */}
               <div>
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
                   6. Pickup location
@@ -1066,7 +1099,6 @@ function FarmerDashboard() {
               </button>
             </form>
 
-            {/* My Listings */}
             {myListings.length > 0 && (
               <div className="space-y-6 sm:space-y-8 mt-12 sm:mt-16">
                 <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-charcoal)]">
@@ -1135,7 +1167,6 @@ function FarmerDashboard() {
         </div>
       </main>
 
-      {/* Chat modals */}
       {showChat && (
         <ChatWindow
           onClose={() => setShowChat(false)}
