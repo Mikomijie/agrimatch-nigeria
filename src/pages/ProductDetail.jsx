@@ -26,8 +26,6 @@ function PinIcon() {
   )
 }
 
-// Separate payment component — this is the key fix
-// By isolating useFlutterwave in its own component, we can pass the correct tx_ref
 function PayButton({ orderId, total, product, quantity, user, onClose }) {
   const navigate = useNavigate()
   const config = {
@@ -68,9 +66,8 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
             .update({ quantity: Math.max(0, product.quantity - quantity) })
             .eq('id', product.id)
 
-                       notify.success('Payment successful! Order confirmed.')
+          notify.success('Payment successful! Order confirmed.')
 
-          // Send emails via SendByte
           const { data: fullOrder } = await supabase
             .from('orders')
             .select('*, listings(crop_type, profiles(full_name, email)), buyer:buyer_id(full_name, email)')
@@ -109,9 +106,11 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
     })
   }
 
-  // Auto-open payment modal when this component mounts
   useEffect(() => {
-    handlePay()
+    const timer = setTimeout(() => {
+      handlePay()
+    }, 100)
+    return () => clearTimeout(timer)
   }, [])
 
   return null
@@ -129,12 +128,15 @@ function ProductDetail() {
   const [pendingOrderId, setPendingOrderId] = useState(null)
   const [moreListings, setMoreListings] = useState([])
   const [timeLeft, setTimeLeft] = useState(null)
+  // VFR-005: real verification status
+  const [isVerified, setIsVerified] = useState(false)
+  const [verificationLoadError, setVerificationLoadError] = useState(false)
 
   useEffect(() => {
     async function fetchProduct() {
       const { data, error } = await supabase
         .from('listings')
-        .select('*, profiles(full_name)')
+        .select('*, profiles(full_name, email, phone_number, farm_name, farm_region, location)')
         .eq('id', id)
         .single()
       if (error) {
@@ -142,6 +144,28 @@ function ProductDetail() {
       } else {
         setProduct(data)
         setQuantity((q) => Math.min(q, data.quantity || q))
+
+        // Fix 1: fetch verification status with explicit error handling
+        if (data?.farmer_id) {
+          try {
+            const { data: verif, error: verifError } = await supabase
+              .from('verification_applications')
+              .select('status')
+              .eq('farmer_id', data.farmer_id)
+              .eq('status', 'approved')
+              .limit(1)
+              .maybeSingle()
+
+            if (verifError) throw verifError
+            setIsVerified(!!verif)
+            setVerificationLoadError(false)
+          } catch (err) {
+            console.error('Verification status fetch failed:', err)
+            // Fix 1: set error flag — do NOT default to unverified silently
+            setVerificationLoadError(true)
+            setIsVerified(false)
+          }
+        }
       }
       setLoading(false)
     }
@@ -187,7 +211,6 @@ function ProductDetail() {
     const interval = setInterval(update, 60000)
     return () => clearInterval(interval)
   }, [product])
-
 
   if (loading) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
@@ -259,7 +282,6 @@ function ProductDetail() {
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)]">
 
-      {/* PayButton renders and auto-opens Flutterwave when order is ready */}
       {pendingOrderId && paymentProcessing && (
         <PayButton
           orderId={pendingOrderId}
@@ -279,10 +301,7 @@ function ProductDetail() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/marketplace')}
-                className="md:hidden text-white/80 hover:text-white transition-colors"
-              >
+              <button onClick={() => navigate('/marketplace')} className="md:hidden text-white/80 hover:text-white transition-colors">
                 <ChevronLeft />
               </button>
               <Link to="/" className="font-[var(--font-heading)] italic text-2xl sm:text-3xl text-white flex-shrink-0">
@@ -290,18 +309,11 @@ function ProductDetail() {
               </Link>
             </div>
             <nav className="hidden md:flex items-center gap-6 sm:gap-8 text-sm font-medium flex-1 justify-center">
-              <button
-                onClick={() => navigate('/marketplace')}
-                className="flex items-center gap-1 text-white/80 hover:text-white transition-colors font-semibold"
-              >
+              <button onClick={() => navigate('/marketplace')} className="flex items-center gap-1 text-white/80 hover:text-white transition-colors font-semibold">
                 <ChevronLeft /> Back
               </button>
-              <Link to="/marketplace" className="pb-2 border-b-2 border-white text-white">
-                Marketplace
-              </Link>
-              <Link to="/dashboard" className="text-white/80 hover:text-white transition-colors">
-                Dashboard
-              </Link>
+              <Link to="/marketplace" className="pb-2 border-b-2 border-white text-white">Marketplace</Link>
+              <Link to="/dashboard" className="text-white/80 hover:text-white transition-colors">Dashboard</Link>
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
               <span className="text-xs sm:text-sm text-white/60 hidden sm:inline">{user?.full_name}</span>
@@ -335,7 +347,7 @@ function ProductDetail() {
               {product.crop_type}
             </h1>
             <p className="text-base sm:text-lg text-[var(--color-charcoal)]/70 max-w-md leading-relaxed">
-              Freshly harvested produce from verified Nigerian farmers. Direct to you, no middlemen.
+              Freshly harvested produce from Nigerian farmers. Direct to you, no middlemen.
             </p>
             <div className="grid grid-cols-2 gap-6 mt-8 sm:mt-10">
               <div>
@@ -418,16 +430,70 @@ function ProductDetail() {
               </div>
             )}
 
-            <motion.div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-6 mt-6 border border-black/5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-              <p className="text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/50 uppercase mb-4">Verified Grower</p>
-              <div className="flex items-center gap-4">
+            {/* VFR-005: Farmer card — real verified status with error handling */}
+            <motion.div
+              className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-6 mt-6 border border-black/5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              {/* Fix 1: show visible indicator if verification status couldn't load */}
+              {verificationLoadError ? (
+                <p className="text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/40 uppercase mb-4">
+                  Farmer · Verification status unavailable
+                </p>
+              ) : isVerified ? (
+                <p className="text-xs font-semibold tracking-wider text-green-600 uppercase mb-4 flex items-center gap-1.5">
+                  <span>✓</span> Verified Grower
+                </p>
+              ) : (
+                <p className="text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/50 uppercase mb-4">
+                  Farmer
+                </p>
+              )}
+
+              <div className="flex items-center gap-4 mb-4">
                 <div className="w-14 h-14 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                   {product.profiles?.full_name?.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <h3 className="font-bold text-[var(--color-charcoal)] text-base">{product.profiles?.full_name}</h3>
-                  <p className="text-sm text-[var(--color-charcoal)]/60">Verified Nigerian Farmer</p>
+                  {!verificationLoadError && isVerified ? (
+                    <p className="text-sm text-green-600 font-semibold">Verified Nigerian Farmer</p>
+                  ) : (
+                    <p className="text-sm text-[var(--color-charcoal)]/60">Nigerian Farmer</p>
+                  )}
                 </div>
+              </div>
+
+              {/* What verified means — AC3 */}
+              {!verificationLoadError && isVerified && (
+                <div className="bg-green-50 border border-green-100 rounded-lg p-3 mb-4">
+                  <p className="text-xs text-green-700 leading-relaxed">
+                    <span className="font-bold">What does verified mean?</span> AgriMatch has reviewed this farmer's farm details and photo evidence and confirmed they are a real, active farm in Nigeria.
+                  </p>
+                </div>
+              )}
+
+              <div className="border-t border-black/10 pt-4 space-y-3">
+                {product.profiles?.farm_name && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--color-charcoal)]/50 uppercase">Farm Name</p>
+                    <p className="text-sm font-semibold text-[var(--color-charcoal)] mt-1">{product.profiles.farm_name}</p>
+                  </div>
+                )}
+                {product.profiles?.farm_region && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--color-charcoal)]/50 uppercase">Region</p>
+                    <p className="text-sm font-semibold text-[var(--color-charcoal)] mt-1">{product.profiles.farm_region}</p>
+                  </div>
+                )}
+                {product.profiles?.phone_number && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--color-charcoal)]/50 uppercase">Contact</p>
+                    <p className="text-sm font-semibold text-[var(--color-charcoal)] mt-1">{product.profiles.phone_number}</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
