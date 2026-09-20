@@ -21,7 +21,7 @@ const REGIONS = [
 
 function Auth() {
   const navigate = useNavigate()
-  const [step, setStep] = useState('role')
+  const [step, setStep] = useState('role') // 'role' | 'form' | 'farm-details'
   const [mode, setMode] = useState('signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -32,6 +32,8 @@ function Auth() {
   const [emailError, setEmailError] = useState('')
   const [role, setRole] = useState('farmer')
   const [region, setRegion] = useState('')
+  const [farmName, setFarmName] = useState('')
+  const [farmRegion, setFarmRegion] = useState('')
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -81,17 +83,17 @@ function Auth() {
     setStep('form')
   }
 
-  const handleSignup = async (e) => {
+  // Called when farmer clicks Next on Step 1/2
+  const handleFormNext = (e) => {
     e.preventDefault()
+    setError(null)
+    setStep('farm-details')
+  }
+
+  // Final submit — called for non-farmers from Step 1, and for farmers from Step 2
+  const submitSignup = async () => {
     setSubmitting(true)
     setError(null)
-    setSuccess(null)
-
-    if (!agreeTerms) {
-      setError('Please agree to the terms and conditions')
-      setSubmitting(false)
-      return
-    }
 
     let formattedPhone = phone
     if (!phone.startsWith('+234')) {
@@ -102,38 +104,112 @@ function Auth() {
       }
     }
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    })
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      })
 
-    if (authError) {
-      setError(getFriendlyError(authError.message))
+      // If user already exists (dropped connection mid-signup), sign in
+      // and upsert the profile so the retry can complete
+      let userId = authData?.user?.id
+
+      if (authError) {
+  if (authError.message.includes('already registered')) {
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      if (signInError.message.includes('Email not confirmed')) {
+        setError('Check your email and click the confirmation link first, then come back and try again. Your details are saved.')
+        setSubmitting(false)
+        return
+      }
+      setError('This email is already registered. Please log in instead.')
       setSubmitting(false)
       return
     }
-
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: authData.user.id,
-      email,
-      full_name: name,
-      phone: formattedPhone,
-      role,
-      region: region || null,
-    })
-
-    if (profileError) {
-      notify.error('Failed to create account')
-      setError(getFriendlyError(profileError.message))
+    if (!signInData?.user) {
+      setError('This email is already registered. Please log in instead.')
       setSubmitting(false)
-    } else {
+      return
+    }
+    userId = signInData.user.id
+  } else {
+    setError(getFriendlyError(authError.message))
+    setSubmitting(false)
+    return
+  }
+}
+
+      if (!userId) {
+        setError('Something went wrong. Please try again.')
+        setSubmitting(false)
+        return
+      }
+
+      const profileData = {
+        id: userId,
+        email,
+        full_name: name,
+        phone_number: formattedPhone,
+        role,
+        location: region || null,
+      }
+
+      if (role === 'farmer') {
+        profileData.farm_name = farmName
+        profileData.farm_region = farmRegion
+        profileData.is_profile_complete = true
+      }
+
+      // upsert instead of insert — safe to retry if connection dropped
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(profileData, { onConflict: 'id' })
+
+      if (profileError) {
+        notify.error('Failed to save your details. Please try again.')
+        setError('Your account was created but we could not save your details. You can complete your profile from the dashboard.')
+        setSubmitting(false)
+        return
+      }
+
       const roleRoutes = { farmer: '/dashboard', buyer: '/marketplace', transporter: '/logistics' }
       notify.success('Account created! Welcome to AgriMatch')
       setSuccess(`You're registered as a ${role.charAt(0).toUpperCase() + role.slice(1)}. Redirecting...`)
       setTimeout(() => {
         navigate(roleRoutes[role])
       }, 2500)
+    } catch (err) {
+      setError('Connection error. Your details are still here — please try again.')
+      setSubmitting(false)
     }
+  }
+
+  const handleSignup = async (e) => {
+    e.preventDefault()
+    if (!agreeTerms) {
+      setError('Please agree to the terms and conditions')
+      return
+    }
+    // Farmers go to Step 2 first
+    if (role === 'farmer') {
+      handleFormNext(e)
+      return
+    }
+    await submitSignup()
+  }
+
+  const handleFarmDetailsSubmit = async (e) => {
+    e.preventDefault()
+    if (!farmName.trim()) {
+      setError('Farm name is required')
+      return
+    }
+    if (!farmRegion) {
+      setError('Farm region is required')
+      return
+    }
+    await submitSignup()
   }
 
   const handleLogin = async (e) => {
@@ -156,11 +232,11 @@ function Auth() {
         .single()
 
       const roleRoutes = { farmer: '/dashboard', buyer: '/marketplace', transporter: '/logistics' }
-notify.success('Logged in successfully!')
-setSuccess('Logged in successfully! Redirecting...')
-setTimeout(() => {
-  navigate(roleRoutes[userData?.role] || '/role-switch')
-}, 2500)
+      notify.success('Logged in successfully!')
+      setSuccess('Logged in successfully! Redirecting...')
+      setTimeout(() => {
+        navigate(roleRoutes[userData?.role] || '/role-switch')
+      }, 2500)
     }
   }
 
@@ -189,6 +265,8 @@ setTimeout(() => {
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center px-4 sm:px-6 py-12">
       <AnimatePresence mode="wait">
+
+        {/* STEP: Role selection */}
         {step === 'role' && mode === 'signup' ? (
           <motion.div
             key="role-selection"
@@ -203,78 +281,169 @@ setTimeout(() => {
             <p className="text-[var(--color-charcoal)]/60 text-sm mb-10">Choose your role to get started</p>
 
             <div className="space-y-3">
-  {ROLES.map((r, index) => {
-    const icons = {
-      farmer: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/>
-          <circle cx="12" cy="10" r="3"/>
-        </svg>
-      ),
-      buyer: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <path d="M16 10a4 4 0 0 1-8 0"/>
-        </svg>
-      ),
-      transporter: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1" y="3" width="15" height="13" rx="1"/>
-          <path d="M16 8h4l3 5v4h-7V8z"/>
-          <circle cx="5.5" cy="18.5" r="2.5"/>
-          <circle cx="18.5" cy="18.5" r="2.5"/>
-        </svg>
-      ),
-    }
-    const colors = {
-      farmer: 'bg-[var(--color-primary-light)]/30 text-[var(--color-primary)]',
-      buyer: 'bg-[var(--color-secondary-light)]/25 text-[var(--color-secondary-dark)]',
-      transporter: 'bg-[var(--color-moss)]/15 text-[var(--color-moss)]',
-    }
-    return (
-      <motion.button
-        key={r.id}
-        onClick={() => handleRoleSelect(r.id)}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: index * 0.1 }}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="w-full p-5 border-2 border-black/10 rounded-xl hover:border-[var(--color-primary)] hover:shadow-md transition-all text-left bg-white shadow-sm group"
-      >
-        <div className="flex items-center gap-4">
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200 ${colors[r.id]}`}>
-            {icons[r.id]}
-          </div>
-          <div className="flex-1">
-            <p className="font-bold text-lg text-[var(--color-charcoal)]">{r.label}</p>
-            <p className="text-sm text-[var(--color-charcoal)]/60 mt-0.5">
-              {r.id === 'farmer' && 'List harvests, manage sales'}
-              {r.id === 'buyer' && 'Browse produce, make purchases'}
-              {r.id === 'transporter' && 'Manage deliveries, logistics'}
-            </p>
-          </div>
-          <svg className="w-5 h-5 text-[var(--color-charcoal)]/30 group-hover:text-[var(--color-primary)] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/>
-          </svg>
-        </div>
-      </motion.button>
-    )
-  })}
-</div>
+              {ROLES.map((r, index) => {
+                const icons = {
+                  farmer: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                  ),
+                  buyer: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                      <line x1="3" y1="6" x2="21" y2="6"/>
+                      <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                  ),
+                  transporter: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="1" y="3" width="15" height="13" rx="1"/>
+                      <path d="M16 8h4l3 5v4h-7V8z"/>
+                      <circle cx="5.5" cy="18.5" r="2.5"/>
+                      <circle cx="18.5" cy="18.5" r="2.5"/>
+                    </svg>
+                  ),
+                }
+                const colors = {
+                  farmer: 'bg-[var(--color-primary-light)]/30 text-[var(--color-primary)]',
+                  buyer: 'bg-[var(--color-secondary-light)]/25 text-[var(--color-secondary-dark)]',
+                  transporter: 'bg-[var(--color-moss)]/15 text-[var(--color-moss)]',
+                }
+                return (
+                  <motion.button
+                    key={r.id}
+                    onClick={() => handleRoleSelect(r.id)}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full p-5 border-2 border-black/10 rounded-xl hover:border-[var(--color-primary)] hover:shadow-md transition-all text-left bg-white shadow-sm group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200 ${colors[r.id]}`}>
+                        {icons[r.id]}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-lg text-[var(--color-charcoal)]">{r.label}</p>
+                        <p className="text-sm text-[var(--color-charcoal)]/60 mt-0.5">
+                          {r.id === 'farmer' && 'List harvests, manage sales'}
+                          {r.id === 'buyer' && 'Browse produce, make purchases'}
+                          {r.id === 'transporter' && 'Manage deliveries, logistics'}
+                        </p>
+                      </div>
+                      <svg className="w-5 h-5 text-[var(--color-charcoal)]/30 group-hover:text-[var(--color-primary)] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/>
+                      </svg>
+                    </div>
+                  </motion.button>
+                )
+              })}
+            </div>
 
-           <p className="mt-8 text-sm text-[var(--color-charcoal)]/60">
-  Already have an account?{' '}
-  <button
-    onClick={() => { setMode('login'); setStep('form') }}
-    className="text-[var(--color-primary)] font-bold hover:underline"
-  >
-    Log In
-  </button>
-</p>
+            <p className="mt-8 text-sm text-[var(--color-charcoal)]/60">
+              Already have an account?{' '}
+              <button
+                onClick={() => { setMode('login'); setStep('form') }}
+                className="text-[var(--color-primary)] font-bold hover:underline"
+              >
+                Log In
+              </button>
+            </p>
           </motion.div>
+
+        ) : step === 'farm-details' ? (
+
+          /* STEP: Farm details (Step 2/2 for farmers only) */
+          <motion.div
+            key="farm-details"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full max-w-md"
+          >
+            <button
+              onClick={() => { setStep('form'); setError(null) }}
+              className="mb-6 text-sm font-semibold text-[var(--color-charcoal)]/60 hover:text-[var(--color-primary)] transition-colors"
+            >
+              ← Back
+            </button>
+
+            <div className="mb-6">
+              <div className="flex gap-1 mb-3">
+                <div className="h-1 rounded-full flex-1 bg-[var(--color-primary)]" />
+                <div className="h-1 rounded-full flex-1 bg-[var(--color-primary)]" />
+              </div>
+              <p className="text-xs text-[var(--color-charcoal)]/60 font-semibold">Step 2 of 2 — Farm Details</p>
+            </div>
+
+            <h2 className="text-2xl font-bold text-[var(--color-charcoal)] mb-1">Tell us about your farm</h2>
+            <p className="text-sm text-[var(--color-charcoal)]/60 mb-6">Buyers see this when they browse your listings.</p>
+
+            <form onSubmit={handleFarmDetailsSubmit} className="space-y-5">
+              <div>
+                <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Farm Name</label>
+                <input
+                  type="text"
+                  required
+                  value={farmName}
+                  onChange={(e) => setFarmName(e.target.value)}
+                  className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                  placeholder="e.g. Green Valley Farm"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Farm Region</label>
+                <select
+                  required
+                  value={farmRegion}
+                  onChange={(e) => setFarmRegion(e.target.value)}
+                  className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm bg-white focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
+                >
+                  <option value="">Select your farm region</option>
+                  {REGIONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-50 border-2 border-red-200 rounded-lg p-4"
+                >
+                  <p className="text-sm text-red-700 font-medium">{error}</p>
+                </motion.div>
+              )}
+
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-[var(--color-primary-light)]/20 border-2 border-[var(--color-primary)]/30 rounded-lg p-4"
+                >
+                  <p className="text-sm text-[var(--color-primary-dark)] font-medium">{success}</p>
+                </motion.div>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 text-base"
+              >
+                {submitting ? 'Creating your account...' : 'Complete Registration'}
+              </button>
+            </form>
+          </motion.div>
+
         ) : (
+
+          /* STEP: Main form (login or signup Step 1) */
           <motion.div
             key="form"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -304,9 +473,12 @@ setTimeout(() => {
 
             {mode === 'signup' && (
               <div className="mb-6">
-                <div className="h-1 rounded-full mb-3 bg-[var(--color-primary)]" />
+                <div className="flex gap-1 mb-3">
+                  <div className="h-1 rounded-full flex-1 bg-[var(--color-primary)]" />
+                  <div className={`h-1 rounded-full flex-1 ${role === 'farmer' ? 'bg-black/10' : 'bg-[var(--color-primary)]'}`} />
+                </div>
                 <p className="text-xs text-[var(--color-charcoal)]/60 font-semibold">
-                  Signing up as: <span className="text-[var(--color-primary)] font-bold">{ROLES.find(r => r.id === role)?.label}</span>
+                  {role === 'farmer' ? 'Step 1 of 2' : 'Step 1 of 1'} — Signing up as: <span className="text-[var(--color-primary)] font-bold">{ROLES.find(r => r.id === role)?.label}</span>
                 </p>
               </div>
             )}
@@ -378,27 +550,6 @@ setTimeout(() => {
                     </p>
                   )}
                 </div>
-
-                {role === 'farmer' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Harvest Region</label>
-                    <select
-                      required
-                      value={region}
-                      onChange={(e) => setRegion(e.target.value)}
-                      className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm bg-white focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
-                    >
-                      <option value="">Select your region</option>
-                      {REGIONS.map((r) => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                  </motion.div>
-                )}
 
                 <div>
                   <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Email</label>
@@ -483,7 +634,7 @@ setTimeout(() => {
                   disabled={submitting}
                   className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 mt-4 text-base"
                 >
-                  {submitting ? 'Creating account...' : 'Create Account'}
+                  {submitting ? 'Creating account...' : role === 'farmer' ? 'Next →' : 'Create Account'}
                 </button>
 
                 <p className="text-center text-sm text-[var(--color-charcoal)]/60">
