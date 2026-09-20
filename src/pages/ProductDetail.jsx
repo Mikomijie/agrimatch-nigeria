@@ -106,7 +106,7 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
     })
   }
 
-   useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       handlePay()
     }, 100)
@@ -128,7 +128,9 @@ function ProductDetail() {
   const [pendingOrderId, setPendingOrderId] = useState(null)
   const [moreListings, setMoreListings] = useState([])
   const [timeLeft, setTimeLeft] = useState(null)
-  const [isVerified, setIsVerified] = useState(false) // VFR-005
+  // VFR-005: real verification status
+  const [isVerified, setIsVerified] = useState(false)
+  const [verificationLoadError, setVerificationLoadError] = useState(false)
 
   useEffect(() => {
     async function fetchProduct() {
@@ -143,16 +145,26 @@ function ProductDetail() {
         setProduct(data)
         setQuantity((q) => Math.min(q, data.quantity || q))
 
-        // VFR-005: Check real verification status for this farmer
+        // Fix 1: fetch verification status with explicit error handling
         if (data?.farmer_id) {
-          const { data: verif } = await supabase
-            .from('verification_applications')
-            .select('status')
-            .eq('farmer_id', data.farmer_id)
-            .eq('status', 'approved')
-            .limit(1)
-            .maybeSingle()
-          setIsVerified(!!verif)
+          try {
+            const { data: verif, error: verifError } = await supabase
+              .from('verification_applications')
+              .select('status')
+              .eq('farmer_id', data.farmer_id)
+              .eq('status', 'approved')
+              .limit(1)
+              .maybeSingle()
+
+            if (verifError) throw verifError
+            setIsVerified(!!verif)
+            setVerificationLoadError(false)
+          } catch (err) {
+            console.error('Verification status fetch failed:', err)
+            // Fix 1: set error flag — do NOT default to unverified silently
+            setVerificationLoadError(true)
+            setIsVerified(false)
+          }
         }
       }
       setLoading(false)
@@ -289,10 +301,7 @@ function ProductDetail() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/marketplace')}
-                className="md:hidden text-white/80 hover:text-white transition-colors"
-              >
+              <button onClick={() => navigate('/marketplace')} className="md:hidden text-white/80 hover:text-white transition-colors">
                 <ChevronLeft />
               </button>
               <Link to="/" className="font-[var(--font-heading)] italic text-2xl sm:text-3xl text-white flex-shrink-0">
@@ -300,18 +309,11 @@ function ProductDetail() {
               </Link>
             </div>
             <nav className="hidden md:flex items-center gap-6 sm:gap-8 text-sm font-medium flex-1 justify-center">
-              <button
-                onClick={() => navigate('/marketplace')}
-                className="flex items-center gap-1 text-white/80 hover:text-white transition-colors font-semibold"
-              >
+              <button onClick={() => navigate('/marketplace')} className="flex items-center gap-1 text-white/80 hover:text-white transition-colors font-semibold">
                 <ChevronLeft /> Back
               </button>
-              <Link to="/marketplace" className="pb-2 border-b-2 border-white text-white">
-                Marketplace
-              </Link>
-              <Link to="/dashboard" className="text-white/80 hover:text-white transition-colors">
-                Dashboard
-              </Link>
+              <Link to="/marketplace" className="pb-2 border-b-2 border-white text-white">Marketplace</Link>
+              <Link to="/dashboard" className="text-white/80 hover:text-white transition-colors">Dashboard</Link>
             </nav>
             <div className="flex items-center gap-2 sm:gap-4 ml-auto">
               <span className="text-xs sm:text-sm text-white/60 hidden sm:inline">{user?.full_name}</span>
@@ -428,14 +430,19 @@ function ProductDetail() {
               </div>
             )}
 
-            {/* VFR-005: Farmer card — real status only */}
+            {/* VFR-005: Farmer card — real verified status with error handling */}
             <motion.div
               className="bg-white rounded-lg sm:rounded-xl shadow-sm p-4 sm:p-6 mt-6 border border-black/5"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
             >
-              {isVerified ? (
+              {/* Fix 1: show visible indicator if verification status couldn't load */}
+              {verificationLoadError ? (
+                <p className="text-xs font-semibold tracking-wider text-[var(--color-charcoal)]/40 uppercase mb-4">
+                  Farmer · Verification status unavailable
+                </p>
+              ) : isVerified ? (
                 <p className="text-xs font-semibold tracking-wider text-green-600 uppercase mb-4 flex items-center gap-1.5">
                   <span>✓</span> Verified Grower
                 </p>
@@ -451,7 +458,7 @@ function ProductDetail() {
                 </div>
                 <div>
                   <h3 className="font-bold text-[var(--color-charcoal)] text-base">{product.profiles?.full_name}</h3>
-                  {isVerified ? (
+                  {!verificationLoadError && isVerified ? (
                     <p className="text-sm text-green-600 font-semibold">Verified Nigerian Farmer</p>
                   ) : (
                     <p className="text-sm text-[var(--color-charcoal)]/60">Nigerian Farmer</p>
@@ -459,8 +466,8 @@ function ProductDetail() {
                 </div>
               </div>
 
-              {/* What verified means — shown only when badge is present (VFR-005 AC3) */}
-              {isVerified && (
+              {/* What verified means — AC3 */}
+              {!verificationLoadError && isVerified && (
                 <div className="bg-green-50 border border-green-100 rounded-lg p-3 mb-4">
                   <p className="text-xs text-green-700 leading-relaxed">
                     <span className="font-bold">What does verified mean?</span> AgriMatch has reviewed this farmer's farm details and photo evidence and confirmed they are a real, active farm in Nigeria.
