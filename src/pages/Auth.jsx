@@ -115,20 +115,30 @@ function Auth() {
       let userId = authData?.user?.id
 
       if (authError) {
-        if (authError.message.includes('already registered')) {
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-          if (signInError || !signInData?.user) {
-            setError('This email is already registered. Please log in instead.')
-            setSubmitting(false)
-            return
-          }
-          userId = signInData.user.id
-        } else {
-          setError(getFriendlyError(authError.message))
-          setSubmitting(false)
-          return
-        }
+  if (authError.message.includes('already registered')) {
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      if (signInError.message.includes('Email not confirmed')) {
+        setError('Check your email and click the confirmation link first, then come back and try again. Your details are saved.')
+        setSubmitting(false)
+        return
       }
+      setError('This email is already registered. Please log in instead.')
+      setSubmitting(false)
+      return
+    }
+    if (!signInData?.user) {
+      setError('This email is already registered. Please log in instead.')
+      setSubmitting(false)
+      return
+    }
+    userId = signInData.user.id
+  } else {
+    setError(getFriendlyError(authError.message))
+    setSubmitting(false)
+    return
+  }
+}
 
       if (!userId) {
         setError('Something went wrong. Please try again.')

@@ -253,13 +253,15 @@ function FarmerDashboard() {
 
     try {
             const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          farm_name: editFarmName,
-          farm_region: editFarmRegion,
-          is_profile_complete: true,
-        }, { onConflict: 'id' })
+  .from('profiles')
+  .upsert({
+    id: user.id,
+    email: user.email,
+    role: 'farmer',
+    farm_name: editFarmName,
+    farm_region: editFarmRegion,
+    is_profile_complete: true,
+  }, { onConflict: 'id' })
 
       if (error) throw error
 

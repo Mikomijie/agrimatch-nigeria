@@ -56,9 +56,17 @@ function ListingCard({ listing, onMessage }) {
           📍 {listing.location}
         </p>
         <div className="mt-3 pt-3 border-t border-black/5">
-          <p className="text-xs font-medium text-[var(--color-charcoal)]/80">
-            {listing.profiles?.full_name}
-          </p>
+          <div className="mt-3 pt-3 border-t border-black/5 flex items-center justify-between">
+  <div>
+    <p className="text-xs font-medium text-[var(--color-charcoal)]/80">
+      {listing.profiles?.full_name}
+    </p>
+    {listing.profiles?.farm_name && (
+      <p className="text-xs text-[var(--color-charcoal)]/50 mt-0.5">
+        {listing.profiles.farm_name} · {listing.profiles.farm_region}
+      </p>
+    )}
+  </div>
         </div>
         <div className="mt-4 space-y-2">
           <Link
