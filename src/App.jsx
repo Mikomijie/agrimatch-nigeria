@@ -16,6 +16,7 @@ import Terms from './pages/Terms'
 import RoleSwitch from './pages/RoleSwitch'
 import Auth from './pages/Auth'
 import NotFound from './pages/NotFound'
+import OperatorDashboard from './pages/OperatorDashboard'
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
         <Route path="/payment-callback" element={<PaymentCallback />} />
         <Route path="/bulk-order" element={<BulkOrderRequest />} />
         <Route path="/transporter-registration" element={<TransporterRegistration />} />
+        <Route path="/operator" element={<OperatorDashboard />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
