@@ -21,7 +21,7 @@ const REGIONS = [
 
 function Auth() {
   const navigate = useNavigate()
-  const [step, setStep] = useState('role')
+  const [step, setStep] = useState('role') // 'role' | 'form' | 'farm-details'
   const [mode, setMode] = useState('signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -57,14 +57,6 @@ function Auth() {
     }
   }, [step, mode])
 
-  useEffect(() => {
-    if (step === 'farm-details' && firstInputRef.current) {
-      setTimeout(() => {
-        firstInputRef.current.focus()
-      }, 100)
-    }
-  }, [step])
-
   const validatePhone = (value) => {
     const cleaned = value.replace(/\D/g, '')
     if (cleaned.length === 0) {
@@ -91,74 +83,61 @@ function Auth() {
     setStep('form')
   }
 
-  const handleSignup = async (e) => {
+  // Called when farmer clicks Next on Step 1/2
+  const handleFormNext = (e) => {
     e.preventDefault()
-    setSubmitting(true)
     setError(null)
-    setSuccess(null)
-
-    if (!agreeTerms) {
-      setError('Please agree to the terms and conditions')
-      setSubmitting(false)
-      return
-    }
-
-    // For farmers, go to farm details step instead of submitting
-    if (role === 'farmer') {
-      setStep('farm-details')
-      setSubmitting(false)
-      return
-    }
-
-    // For non-farmers, submit directly
-    await submitSignup()
+    setStep('farm-details')
   }
 
-  const handleFarmDetailsSubmit = async (e) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-
-    if (!farmName.trim()) {
-      setError('Farm name is required')
-      setSubmitting(false)
-      return
-    }
-
-    if (!farmRegion) {
-      setError('Farm region is required')
-      setSubmitting(false)
-      return
-    }
-
-    await submitSignup()
-  }
-
+  // Final submit — called for non-farmers from Step 1, and for farmers from Step 2
   const submitSignup = async () => {
-    try {
-      let formattedPhone = phone
-      if (!phone.startsWith('+234')) {
-        if (phone.startsWith('0')) {
-          formattedPhone = '+234' + phone.slice(1)
-        } else {
-          formattedPhone = '+234' + phone
-        }
-      }
+    setSubmitting(true)
+    setError(null)
 
+    let formattedPhone = phone
+    if (!phone.startsWith('+234')) {
+      if (phone.startsWith('0')) {
+        formattedPhone = '+234' + phone.slice(1)
+      } else {
+        formattedPhone = '+234' + phone
+      }
+    }
+
+    try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
       })
 
+      // If user already exists (dropped connection mid-signup), sign in
+      // and upsert the profile so the retry can complete
+      let userId = authData?.user?.id
+
       if (authError) {
-        setError(getFriendlyError(authError.message))
+        if (authError.message.includes('already registered')) {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+          if (signInError || !signInData?.user) {
+            setError('This email is already registered. Please log in instead.')
+            setSubmitting(false)
+            return
+          }
+          userId = signInData.user.id
+        } else {
+          setError(getFriendlyError(authError.message))
+          setSubmitting(false)
+          return
+        }
+      }
+
+      if (!userId) {
+        setError('Something went wrong. Please try again.')
         setSubmitting(false)
         return
       }
 
-      // Prepare profile data
       const profileData = {
-        id: authData.user.id,
+        id: userId,
         email,
         full_name: name,
         phone_number: formattedPhone,
@@ -166,18 +145,20 @@ function Auth() {
         location: region || null,
       }
 
-      // Add farm details if farmer
       if (role === 'farmer') {
         profileData.farm_name = farmName
         profileData.farm_region = farmRegion
         profileData.is_profile_complete = true
       }
 
-      const { error: profileError } = await supabase.from('profiles').insert(profileData)
+      // upsert instead of insert — safe to retry if connection dropped
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(profileData, { onConflict: 'id' })
 
       if (profileError) {
-        notify.error('Failed to create account')
-        setError(getFriendlyError(profileError.message))
+        notify.error('Failed to save your details. Please try again.')
+        setError('Your account was created but we could not save your details. You can complete your profile from the dashboard.')
         setSubmitting(false)
         return
       }
@@ -185,14 +166,40 @@ function Auth() {
       const roleRoutes = { farmer: '/dashboard', buyer: '/marketplace', transporter: '/logistics' }
       notify.success('Account created! Welcome to AgriMatch')
       setSuccess(`You're registered as a ${role.charAt(0).toUpperCase() + role.slice(1)}. Redirecting...`)
-      
       setTimeout(() => {
         navigate(roleRoutes[role])
       }, 2500)
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.')
+      setError('Connection error. Your details are still here — please try again.')
       setSubmitting(false)
     }
+  }
+
+  const handleSignup = async (e) => {
+    e.preventDefault()
+    if (!agreeTerms) {
+      setError('Please agree to the terms and conditions')
+      return
+    }
+    // Farmers go to Step 2 first
+    if (role === 'farmer') {
+      handleFormNext(e)
+      return
+    }
+    await submitSignup()
+  }
+
+  const handleFarmDetailsSubmit = async (e) => {
+    e.preventDefault()
+    if (!farmName.trim()) {
+      setError('Farm name is required')
+      return
+    }
+    if (!farmRegion) {
+      setError('Farm region is required')
+      return
+    }
+    await submitSignup()
   }
 
   const handleLogin = async (e) => {
@@ -248,6 +255,8 @@ function Auth() {
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center px-4 sm:px-6 py-12">
       <AnimatePresence mode="wait">
+
+        {/* STEP: Role selection */}
         {step === 'role' && mode === 'signup' ? (
           <motion.div
             key="role-selection"
@@ -258,20 +267,69 @@ function Auth() {
             className="w-full max-w-md text-center"
           >
             <p className="font-[var(--font-heading)] italic text-3xl text-[var(--color-primary)] mb-2">AgriMatch</p>
-            <p className="text-sm text-[var(--color-charcoal)]/60 mb-10">What brings you here?</p>
+            <h1 className="text-2xl font-bold text-[var(--color-charcoal)] mb-2">What brings you here?</h1>
+            <p className="text-[var(--color-charcoal)]/60 text-sm mb-10">Choose your role to get started</p>
 
-            <div className="grid grid-cols-1 gap-4">
-              {ROLES.map((roleOption) => (
-                <motion.button
-                  key={roleOption.id}
-                  onClick={() => handleRoleSelect(roleOption.id)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="p-4 border-2 border-[var(--color-charcoal)]/10 rounded-lg hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]/5 transition-all text-left font-semibold text-[var(--color-charcoal)]"
-                >
-                  {roleOption.label}
-                </motion.button>
-              ))}
+            <div className="space-y-3">
+              {ROLES.map((r, index) => {
+                const icons = {
+                  farmer: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                  ),
+                  buyer: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                      <line x1="3" y1="6" x2="21" y2="6"/>
+                      <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                  ),
+                  transporter: (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="1" y="3" width="15" height="13" rx="1"/>
+                      <path d="M16 8h4l3 5v4h-7V8z"/>
+                      <circle cx="5.5" cy="18.5" r="2.5"/>
+                      <circle cx="18.5" cy="18.5" r="2.5"/>
+                    </svg>
+                  ),
+                }
+                const colors = {
+                  farmer: 'bg-[var(--color-primary-light)]/30 text-[var(--color-primary)]',
+                  buyer: 'bg-[var(--color-secondary-light)]/25 text-[var(--color-secondary-dark)]',
+                  transporter: 'bg-[var(--color-moss)]/15 text-[var(--color-moss)]',
+                }
+                return (
+                  <motion.button
+                    key={r.id}
+                    onClick={() => handleRoleSelect(r.id)}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full p-5 border-2 border-black/10 rounded-xl hover:border-[var(--color-primary)] hover:shadow-md transition-all text-left bg-white shadow-sm group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200 ${colors[r.id]}`}>
+                        {icons[r.id]}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-lg text-[var(--color-charcoal)]">{r.label}</p>
+                        <p className="text-sm text-[var(--color-charcoal)]/60 mt-0.5">
+                          {r.id === 'farmer' && 'List harvests, manage sales'}
+                          {r.id === 'buyer' && 'Browse produce, make purchases'}
+                          {r.id === 'transporter' && 'Manage deliveries, logistics'}
+                        </p>
+                      </div>
+                      <svg className="w-5 h-5 text-[var(--color-charcoal)]/30 group-hover:text-[var(--color-primary)] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/>
+                      </svg>
+                    </div>
+                  </motion.button>
+                )
+              })}
             </div>
 
             <p className="mt-8 text-sm text-[var(--color-charcoal)]/60">
@@ -284,119 +342,63 @@ function Auth() {
               </button>
             </p>
           </motion.div>
-        ) : step === 'form' ? (
-          mode === 'signup' ? (
-            <motion.form
-              key="signup-form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              onSubmit={handleSignup}
-              className="w-full max-w-md space-y-5"
-            >
-              <p className="font-[var(--font-heading)] italic text-3xl text-[var(--color-primary)]">AgriMatch</p>
-              <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">
-                {role === 'farmer' ? 'STEP 1/2 - YOUR DETAILS' : 'SIGN UP'}
-              </p>
 
+        ) : step === 'farm-details' ? (
+
+          /* STEP: Farm details (Step 2/2 for farmers only) */
+          <motion.div
+            key="farm-details"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full max-w-md"
+          >
+            <button
+              onClick={() => { setStep('form'); setError(null) }}
+              className="mb-6 text-sm font-semibold text-[var(--color-charcoal)]/60 hover:text-[var(--color-primary)] transition-colors"
+            >
+              ← Back
+            </button>
+
+            <div className="mb-6">
+              <div className="flex gap-1 mb-3">
+                <div className="h-1 rounded-full flex-1 bg-[var(--color-primary)]" />
+                <div className="h-1 rounded-full flex-1 bg-[var(--color-primary)]" />
+              </div>
+              <p className="text-xs text-[var(--color-charcoal)]/60 font-semibold">Step 2 of 2 — Farm Details</p>
+            </div>
+
+            <h2 className="text-2xl font-bold text-[var(--color-charcoal)] mb-1">Tell us about your farm</h2>
+            <p className="text-sm text-[var(--color-charcoal)]/60 mb-6">Buyers see this when they browse your listings.</p>
+
+            <form onSubmit={handleFarmDetailsSubmit} className="space-y-5">
               <div>
-                <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Full Name</label>
+                <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Farm Name</label>
                 <input
-                  ref={firstInputRef}
                   type="text"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={farmName}
+                  onChange={(e) => setFarmName(e.target.value)}
                   className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                  placeholder="Your full name"
+                  placeholder="e.g. Green Valley Farm"
+                  autoFocus
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                  placeholder="your@email.com"
-                  autoComplete="email"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Phone Number</label>
-                <div className="mt-2 flex">
-                  <span className="px-4 py-3 bg-[var(--color-primary-light)]/10 border-2 border-r-0 border-black/10 rounded-l-lg text-sm text-[var(--color-charcoal)] font-semibold">
-                    +234
-                  </span>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value)
-                      validatePhone(e.target.value)
-                    }}
-                    className="flex-1 border-2 border-black/10 rounded-r-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                    placeholder="8012345678"
-                  />
-                </div>
-                {phoneError && <p className="text-xs mt-1 text-[var(--color-primary)]">{phoneError}</p>}
-              </div>
-
-              <div>
-                <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Region</label>
+                <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Farm Region</label>
                 <select
                   required
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                  value={farmRegion}
+                  onChange={(e) => setFarmRegion(e.target.value)}
+                  className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm bg-white focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
                 >
-                  <option value="">Select your region</option>
+                  <option value="">Select your farm region</option>
                   {REGIONS.map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Password</label>
-                <div className="mt-2 relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full border-2 border-black/10 rounded-lg px-4 py-3 pr-14 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                    placeholder="At least 6 characters"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--color-charcoal)]/50 hover:text-[var(--color-primary)] transition-colors"
-                  >
-                    {showPassword ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  id="terms"
-                  required
-                  checked={agreeTerms}
-                  onChange={(e) => setAgreeTerms(e.target.checked)}
-                  className="mt-1 w-4 h-4 accent-[var(--color-primary)] cursor-pointer"
-                />
-                <label htmlFor="terms" className="text-xs text-[var(--color-charcoal)]/60 leading-relaxed">
-                  I agree to AgriMatch's{' '}
-                  <Link to="/terms" className="text-[var(--color-primary)] font-bold hover:underline">
-                    Terms and Conditions
-                  </Link>
-                </label>
               </div>
 
               {error && (
@@ -422,236 +424,356 @@ function Auth() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 mt-4 text-base"
+                className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 text-base"
               >
-                {submitting ? (role === 'farmer' ? 'Next Step...' : 'Creating account...') : (role === 'farmer' ? 'Next: Farm Details →' : 'Create Account')}
+                {submitting ? 'Creating your account...' : 'Complete Registration'}
               </button>
+            </form>
+          </motion.div>
 
-              <p className="text-center text-sm text-[var(--color-charcoal)]/60">
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => setMode('login')}
-                  className="text-[var(--color-primary)] font-bold hover:underline"
-                >
-                  Log In
-                </button>
-              </p>
-            </motion.form>
-          ) : (
-            <motion.form
-              key="login-form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              onSubmit={handleLogin}
-              className="w-full max-w-md space-y-5"
-            >
-              <p className="font-[var(--font-heading)] italic text-3xl text-[var(--color-primary)]">AgriMatch</p>
+        ) : (
 
-              {showForgotPassword ? (
-                <>
-                  <h2 className="text-lg font-bold text-[var(--color-charcoal)] mb-4">Reset Password</h2>
-                  <div>
-                    <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Email</label>
-                    <input
-                      type="email"
-                      required
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                      placeholder="your@email.com"
-                      autoComplete="email"
-                    />
-                  </div>
-
-                  {error && (
-                    <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-                      <p className="text-sm text-red-700 font-medium">{error}</p>
-                    </div>
-                  )}
-
-                  {success && (
-                    <div className="bg-[var(--color-primary-light)]/20 border-2 border-[var(--color-primary)]/30 rounded-lg p-4">
-                      <p className="text-sm text-[var(--color-primary-dark)] font-medium">{success}</p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleForgotPassword}
-                    disabled={resetSubmitting}
-                    className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 text-base"
-                  >
-                    {resetSubmitting ? 'Sending link...' : 'Send Reset Link'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => { setShowForgotPassword(false); setError(null); setSuccess(null) }}
-                    className="w-full text-center text-sm font-semibold text-[var(--color-charcoal)]/60 hover:text-[var(--color-primary)] transition-colors"
-                  >
-                    Back to login
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Email</label>
-                    <input
-                      ref={emailInputRef}
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                      placeholder="your@email.com"
-                      autoComplete="email"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Password</label>
-                      <button
-                        type="button"
-                        onClick={() => setShowForgotPassword(true)}
-                        className="text-xs text-[var(--color-primary)] hover:underline font-semibold"
-                      >
-                        Forgot?
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full border-2 border-black/10 rounded-lg px-4 py-3 pr-14 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                        placeholder="Your password"
-                        autoComplete="current-password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--color-charcoal)]/50 hover:text-[var(--color-primary)] transition-colors"
-                      >
-                        {showPassword ? 'Hide' : 'Show'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {error && (
-                    <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-                      <p className="text-sm text-red-700 font-medium">{error}</p>
-                    </div>
-                  )}
-
-                  {success && (
-                    <div className="bg-[var(--color-primary-light)]/20 border-2 border-[var(--color-primary)]/30 rounded-lg p-4">
-                      <p className="text-sm text-[var(--color-primary-dark)] font-medium">{success}</p>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 mt-4 text-base"
-                  >
-                    {submitting ? 'Logging in...' : 'Log In'}
-                  </button>
-
-                  <p className="text-center text-sm text-[var(--color-charcoal)]/60">
-                    Don't have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => { setMode('signup'); setStep('role') }}
-                      className="text-[var(--color-primary)] font-bold hover:underline"
-                    >
-                      Sign Up
-                    </button>
-                  </p>
-                </>
-              )}
-            </motion.form>
-          )
-        ) : step === 'farm-details' ? (
-          <motion.form
-            key="farm-details-form"
+          /* STEP: Main form (login or signup Step 1) */
+          <motion.div
+            key="form"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.3 }}
-            onSubmit={handleFarmDetailsSubmit}
-            className="w-full max-w-md space-y-5"
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-md"
           >
-            <p className="font-[var(--font-heading)] italic text-3xl text-[var(--color-primary)]">AgriMatch</p>
-            <p className="text-xs font-bold tracking-wide text-[var(--color-charcoal)]/70 uppercase">STEP 2/2 - YOUR FARM</p>
-
-            <div>
-              <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Farm Name</label>
-              <input
-                ref={firstInputRef}
-                type="text"
-                required
-                value={farmName}
-                onChange={(e) => setFarmName(e.target.value)}
-                className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                placeholder="e.g., Plateau Vegetable Farm"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Farm Region</label>
-              <select
-                required
-                value={farmRegion}
-                onChange={(e) => setFarmRegion(e.target.value)}
-                className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-              >
-                <option value="">Select farm region</option>
-                {REGIONS.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-            </div>
-
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-50 border-2 border-red-200 rounded-lg p-4"
-              >
-                <p className="text-sm text-red-700 font-medium">{error}</p>
-              </motion.div>
-            )}
-
-            {success && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-[var(--color-primary-light)]/20 border-2 border-[var(--color-primary)]/30 rounded-lg p-4"
-              >
-                <p className="text-sm text-[var(--color-primary-dark)] font-medium">{success}</p>
-              </motion.div>
-            )}
-
             <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 mt-4 text-base"
-            >
-              {submitting ? 'Creating account...' : 'Complete Registration →'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setStep('form')}
-              className="w-full text-center text-sm font-semibold text-[var(--color-charcoal)]/60 hover:text-[var(--color-primary)] transition-colors"
+              onClick={() => {
+                if (mode === 'signup') {
+                  setStep('role')
+                } else {
+                  setMode('signup')
+                  setStep('role')
+                }
+                setError(null)
+                setSuccess(null)
+                setEmailError('')
+                setPhoneError('')
+                setShowForgotPassword(false)
+              }}
+              className="mb-6 text-sm font-semibold text-[var(--color-charcoal)]/60 hover:text-[var(--color-primary)] transition-colors"
             >
               ← Back
             </button>
-          </motion.form>
-        ) : null}
+
+            {mode === 'signup' && (
+              <div className="mb-6">
+                <div className="flex gap-1 mb-3">
+                  <div className="h-1 rounded-full flex-1 bg-[var(--color-primary)]" />
+                  <div className={`h-1 rounded-full flex-1 ${role === 'farmer' ? 'bg-black/10' : 'bg-[var(--color-primary)]'}`} />
+                </div>
+                <p className="text-xs text-[var(--color-charcoal)]/60 font-semibold">
+                  {role === 'farmer' ? 'Step 1 of 2' : 'Step 1 of 1'} — Signing up as: <span className="text-[var(--color-primary)] font-bold">{ROLES.find(r => r.id === role)?.label}</span>
+                </p>
+              </div>
+            )}
+
+            {mode === 'login' && (
+              <div className="flex gap-3 mb-8">
+                <button
+                  onClick={() => { setMode('signup'); setStep('role'); setError(null); setSuccess(null) }}
+                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-2 border-black/10 text-[var(--color-charcoal)]/70"
+                >
+                  Sign Up
+                </button>
+                <button
+                  onClick={() => { setMode('login'); setError(null); setSuccess(null) }}
+                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-2 bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
+                >
+                  Log In
+                </button>
+              </div>
+            )}
+
+            {mode === 'signup' ? (
+              <motion.form
+                key="signup-form"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                onSubmit={handleSignup}
+                className="space-y-5"
+              >
+                <div>
+                  <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Full Name</label>
+                  <input
+                    ref={firstInputRef}
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                    placeholder="Your full name"
+                    autoComplete="name"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Phone Number</label>
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex items-center px-3 py-3 border-2 border-black/10 rounded-lg bg-[var(--color-surface)]">
+                      <span className="text-sm font-semibold text-[var(--color-charcoal)]/70">+234</span>
+                    </div>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(/\D/g, '')
+                        setPhone(cleaned)
+                        validatePhone(cleaned)
+                      }}
+                      className="flex-1 border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                      placeholder="8012345678"
+                      maxLength="10"
+                      autoComplete="tel"
+                    />
+                  </div>
+                  {phoneError && (
+                    <p className={`text-xs mt-1 font-medium ${phoneError.includes('Valid') ? 'text-[var(--color-primary)]' : 'text-orange-600'}`}>
+                      {phoneError}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                    placeholder="your@email.com"
+                    autoComplete="email"
+                  />
+                  {emailError && (
+                    <p className={`text-xs mt-1 font-medium ${emailError.includes('already') ? 'text-red-600' : 'text-[var(--color-charcoal)]/60'}`}>
+                      {emailError}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Password</label>
+                  <div className="mt-2 relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full border-2 border-black/10 rounded-lg px-4 py-3 pr-14 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                      placeholder="At least 6 characters"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--color-charcoal)]/50 hover:text-[var(--color-primary)] transition-colors"
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    required
+                    checked={agreeTerms}
+                    onChange={(e) => setAgreeTerms(e.target.checked)}
+                    className="mt-1 w-4 h-4 accent-[var(--color-primary)] cursor-pointer"
+                  />
+                  <label htmlFor="terms" className="text-xs text-[var(--color-charcoal)]/60 leading-relaxed">
+                    I agree to AgriMatch's{' '}
+                    <Link to="/terms" className="text-[var(--color-primary)] font-bold hover:underline">
+                      Terms and Conditions
+                    </Link>
+                  </label>
+                </div>
+
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border-2 border-red-200 rounded-lg p-4"
+                  >
+                    <p className="text-sm text-red-700 font-medium">{error}</p>
+                  </motion.div>
+                )}
+
+                {success && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-[var(--color-primary-light)]/20 border-2 border-[var(--color-primary)]/30 rounded-lg p-4"
+                  >
+                    <p className="text-sm text-[var(--color-primary-dark)] font-medium">{success}</p>
+                  </motion.div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 mt-4 text-base"
+                >
+                  {submitting ? 'Creating account...' : role === 'farmer' ? 'Next →' : 'Create Account'}
+                </button>
+
+                <p className="text-center text-sm text-[var(--color-charcoal)]/60">
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setMode('login')}
+                    className="text-[var(--color-primary)] font-bold hover:underline"
+                  >
+                    Log In
+                  </button>
+                </p>
+              </motion.form>
+            ) : (
+              <motion.form
+                key="login-form"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                onSubmit={handleLogin}
+                className="space-y-5"
+              >
+                {showForgotPassword ? (
+                  <>
+                    <h2 className="text-lg font-bold text-[var(--color-charcoal)] mb-4">Reset Password</h2>
+                    <div>
+                      <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Email</label>
+                      <input
+                        type="email"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                        placeholder="your@email.com"
+                        autoComplete="email"
+                      />
+                    </div>
+
+                    {error && (
+                      <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                        <p className="text-sm text-red-700 font-medium">{error}</p>
+                      </div>
+                    )}
+
+                    {success && (
+                      <div className="bg-[var(--color-primary-light)]/20 border-2 border-[var(--color-primary)]/30 rounded-lg p-4">
+                        <p className="text-sm text-[var(--color-primary-dark)] font-medium">{success}</p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleForgotPassword}
+                      disabled={resetSubmitting}
+                      className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 text-base"
+                    >
+                      {resetSubmitting ? 'Sending link...' : 'Send Reset Link'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setShowForgotPassword(false); setError(null); setSuccess(null) }}
+                      className="w-full text-center text-sm font-semibold text-[var(--color-charcoal)]/60 hover:text-[var(--color-primary)] transition-colors"
+                    >
+                      Back to login
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Email</label>
+                      <input
+                        ref={emailInputRef}
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                        placeholder="your@email.com"
+                        autoComplete="email"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Password</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowForgotPassword(true)}
+                          className="text-xs text-[var(--color-primary)] hover:underline font-semibold"
+                        >
+                          Forgot?
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full border-2 border-black/10 rounded-lg px-4 py-3 pr-14 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                          placeholder="Your password"
+                          autoComplete="current-password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--color-charcoal)]/50 hover:text-[var(--color-primary)] transition-colors"
+                        >
+                          {showPassword ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {error && (
+                      <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                        <p className="text-sm text-red-700 font-medium">{error}</p>
+                      </div>
+                    )}
+
+                    {success && (
+                      <div className="bg-[var(--color-primary-light)]/20 border-2 border-[var(--color-primary)]/30 rounded-lg p-4">
+                        <p className="text-sm text-[var(--color-primary-dark)] font-medium">{success}</p>
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full bg-[var(--color-primary)] text-white py-3 rounded-lg font-bold hover:brightness-95 active:scale-[0.98] transition-all disabled:opacity-60 mt-4 text-base"
+                    >
+                      {submitting ? 'Logging in...' : 'Log In'}
+                    </button>
+
+                    <p className="text-center text-sm text-[var(--color-charcoal)]/60">
+                      Don't have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => { setMode('signup'); setStep('role') }}
+                        className="text-[var(--color-primary)] font-bold hover:underline"
+                      >
+                        Sign Up
+                      </button>
+                    </p>
+                  </>
+                )}
+              </motion.form>
+            )}
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   )

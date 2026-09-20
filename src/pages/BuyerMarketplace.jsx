@@ -105,7 +105,7 @@ function BuyerMarketplace() {
     try {
       let query = supabase
         .from('listings')
-        .select('*, profiles(full_name)')
+        .select('*, profiles(full_name, farm_name, farm_region)')
         .eq('active', true)
         .order('created_at', { ascending: false })
 
