@@ -7,21 +7,33 @@ export function useCurrentUser() {
 
   useEffect(() => {
     async function fetchUser() {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser()
 
-      if (!authUser) {
+        if (!authUser) {
+          setUser(null)
+          setLoading(false)
+          return
+        }
+
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single()
+
+        if (error) {
+          console.error('Profile fetch error:', error)
+          console.log('Auth user ID:', authUser.id)
+          setUser(authUser)
+        } else {
+          setUser(profile)
+        }
+      } catch (err) {
+        console.error('fetchUser error:', err)
         setUser(null)
-        setLoading(false)
-        return
       }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
-
-      setUser(profile || authUser)
+      
       setLoading(false)
     }
 

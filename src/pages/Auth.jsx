@@ -113,20 +113,25 @@ function Auth() {
       return
     }
 
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: authData.user.id,
-      email,
-      full_name: name,
-      phone: formattedPhone,
-      role,
-      region: region || null,
-    })
+   const { error: profileError } = await supabase.from('profiles').insert({
+  id: authData.user.id,
+  email,
+  full_name: name,
+  phone_number: formattedPhone,
+  role,
+  farm_region: region || null,
+})
 
-    if (profileError) {
-      notify.error('Failed to create account')
-      setError(getFriendlyError(profileError.message))
-      setSubmitting(false)
-    } else {
+console.log('Profile insert error:', profileError)
+console.log('Role value:', role)
+console.log('AuthData:', authData.user.id)
+
+if (profileError) {
+  notify.error('Failed to create account')
+  console.error('Full error:', profileError)
+  setError(getFriendlyError(profileError.message))
+  setSubmitting(false)
+} else {
       const roleRoutes = { farmer: '/dashboard', buyer: '/marketplace', transporter: '/logistics' }
       notify.success('Account created! Welcome to AgriMatch')
       setSuccess(`You're registered as a ${role.charAt(0).toUpperCase() + role.slice(1)}. Redirecting...`)
