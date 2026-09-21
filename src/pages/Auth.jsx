@@ -113,25 +113,20 @@ function Auth() {
       return
     }
 
-   const { error: profileError } = await supabase.from('profiles').insert({
-  id: authData.user.id,
-  email,
-  full_name: name,
-  phone_number: formattedPhone,
-  role,
-  farm_region: region || null,
-})
+    const { error: profileError } = await supabase.from('profiles').insert({
+      id: authData.user.id,
+      email,
+      full_name: name,
+      phone_number: formattedPhone,
+      role,
+      farm_region: region || null,
+    })
 
-console.log('Profile insert error:', profileError)
-console.log('Role value:', role)
-console.log('AuthData:', authData.user.id)
-
-if (profileError) {
-  notify.error('Failed to create account')
-  console.error('Full error:', profileError)
-  setError(getFriendlyError(profileError.message))
-  setSubmitting(false)
-} else {
+    if (profileError) {
+      notify.error('Failed to create account')
+      setError(getFriendlyError(profileError.message))
+      setSubmitting(false)
+    } else {
       const roleRoutes = { farmer: '/dashboard', buyer: '/marketplace', transporter: '/logistics' }
       notify.success('Account created! Welcome to AgriMatch')
       setSuccess(`You're registered as a ${role.charAt(0).toUpperCase() + role.slice(1)}. Redirecting...`)
@@ -153,20 +148,27 @@ if (profileError) {
       notify.error('Login failed')
       setError(getFriendlyError(error.message))
       setSubmitting(false)
-    } else {
-      const { data: userData } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single()
-
-      const roleRoutes = { farmer: '/dashboard', buyer: '/marketplace', transporter: '/logistics' }
-notify.success('Logged in successfully!')
-setSuccess('Logged in successfully! Redirecting...')
-setTimeout(() => {
-  navigate(roleRoutes[userData?.role] || '/role-switch')
-}, 2500)
+      return
     }
+
+    const { data: userData, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single()
+
+    if (profileError || !userData) {
+      setError('Profile not found - please sign up first')
+      setSubmitting(false)
+      return
+    }
+
+    const roleRoutes = { farmer: '/dashboard', buyer: '/marketplace', transporter: '/logistics' }
+    notify.success('Logged in successfully!')
+    setSuccess('Logged in successfully! Redirecting...')
+    setTimeout(() => {
+      navigate(roleRoutes[userData.role] || '/role-switch')
+    }, 2500)
   }
 
   const handleForgotPassword = async (e) => {
@@ -201,137 +203,57 @@ setTimeout(() => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.4 }}
-            className="w-full max-w-md text-center"
+            className="max-w-2xl w-full"
           >
-            <p className="font-[var(--font-heading)] italic text-3xl text-[var(--color-primary)] mb-2">AgriMatch</p>
-            <h1 className="text-2xl font-bold text-[var(--color-charcoal)] mb-2">What brings you here?</h1>
-            <p className="text-[var(--color-charcoal)]/60 text-sm mb-10">Choose your role to get started</p>
+            <div className="text-center mb-12">
+              <h1 className="text-3xl sm:text-4xl font-bold text-[var(--color-charcoal)] mb-3">
+                Welcome to AgriMatch
+              </h1>
+              <p className="text-[var(--color-charcoal)]/60 text-base">
+                Connecting farmers, buyers, and transporters
+              </p>
+            </div>
 
-            <div className="space-y-3">
-  {ROLES.map((r, index) => {
-    const icons = {
-      farmer: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/>
-          <circle cx="12" cy="10" r="3"/>
-        </svg>
-      ),
-      buyer: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <path d="M16 10a4 4 0 0 1-8 0"/>
-        </svg>
-      ),
-      transporter: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1" y="3" width="15" height="13" rx="1"/>
-          <path d="M16 8h4l3 5v4h-7V8z"/>
-          <circle cx="5.5" cy="18.5" r="2.5"/>
-          <circle cx="18.5" cy="18.5" r="2.5"/>
-        </svg>
-      ),
-    }
-    const colors = {
-      farmer: 'bg-[var(--color-primary-light)]/30 text-[var(--color-primary)]',
-      buyer: 'bg-[var(--color-secondary-light)]/25 text-[var(--color-secondary-dark)]',
-      transporter: 'bg-[var(--color-moss)]/15 text-[var(--color-moss)]',
-    }
-    return (
-      <motion.button
-        key={r.id}
-        onClick={() => handleRoleSelect(r.id)}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: index * 0.1 }}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="w-full p-5 border-2 border-black/10 rounded-xl hover:border-[var(--color-primary)] hover:shadow-md transition-all text-left bg-white shadow-sm group"
-      >
-        <div className="flex items-center gap-4">
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200 ${colors[r.id]}`}>
-            {icons[r.id]}
-          </div>
-          <div className="flex-1">
-            <p className="font-bold text-lg text-[var(--color-charcoal)]">{r.label}</p>
-            <p className="text-sm text-[var(--color-charcoal)]/60 mt-0.5">
-              {r.id === 'farmer' && 'List harvests, manage sales'}
-              {r.id === 'buyer' && 'Browse produce, make purchases'}
-              {r.id === 'transporter' && 'Manage deliveries, logistics'}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {ROLES.map((r) => (
+                <motion.button
+                  key={r.id}
+                  onClick={() => handleRoleSelect(r.id)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-6 rounded-2xl border-2 border-black/10 bg-white hover:border-[var(--color-primary)] hover:shadow-lg transition-all text-center"
+                >
+                  <p className="text-lg font-bold text-[var(--color-charcoal)]">{r.label}</p>
+                </motion.button>
+              ))}
+            </div>
+
+            <p className="text-center text-sm text-[var(--color-charcoal)]/60 mt-8">
+              Already have an account?{' '}
+              <button
+                onClick={() => { setMode('login'); setStep('form') }}
+                className="text-[var(--color-primary)] font-bold hover:underline"
+              >
+                Log In
+              </button>
             </p>
-          </div>
-          <svg className="w-5 h-5 text-[var(--color-charcoal)]/30 group-hover:text-[var(--color-primary)] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6"/>
-          </svg>
-        </div>
-      </motion.button>
-    )
-  })}
-</div>
-
-           <p className="mt-8 text-sm text-[var(--color-charcoal)]/60">
-  Already have an account?{' '}
-  <button
-    onClick={() => { setMode('login'); setStep('form') }}
-    className="text-[var(--color-primary)] font-bold hover:underline"
-  >
-    Log In
-  </button>
-</p>
           </motion.div>
         ) : (
           <motion.div
-            key="form"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.4 }}
+            key="form-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="w-full max-w-md"
           >
-            <button
-              onClick={() => {
-                if (mode === 'signup') {
-                  setStep('role')
-                } else {
-                  setMode('signup')
-                  setStep('role')
-                }
-                setError(null)
-                setSuccess(null)
-                setEmailError('')
-                setPhoneError('')
-                setShowForgotPassword(false)
-              }}
-              className="mb-6 text-sm font-semibold text-[var(--color-charcoal)]/60 hover:text-[var(--color-primary)] transition-colors"
-            >
-              ← Back
-            </button>
-
-            {mode === 'signup' && (
-              <div className="mb-6">
-                <div className="h-1 rounded-full mb-3 bg-[var(--color-primary)]" />
-                <p className="text-xs text-[var(--color-charcoal)]/60 font-semibold">
-                  Signing up as: <span className="text-[var(--color-primary)] font-bold">{ROLES.find(r => r.id === role)?.label}</span>
-                </p>
-              </div>
-            )}
-
-            {mode === 'login' && (
-              <div className="flex gap-3 mb-8">
-                <button
-                  onClick={() => { setMode('signup'); setStep('role'); setError(null); setSuccess(null) }}
-                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-2 border-black/10 text-[var(--color-charcoal)]/70"
-                >
-                  Sign Up
-                </button>
-                <button
-                  onClick={() => { setMode('login'); setError(null); setSuccess(null) }}
-                  className="flex-1 py-3 rounded-lg text-sm font-semibold border-2 bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
-                >
-                  Log In
-                </button>
-              </div>
-            )}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-[var(--color-charcoal)] mb-2">
+                {mode === 'signup' ? `Join as ${role.charAt(0).toUpperCase() + role.slice(1)}` : 'Log In'}
+              </h1>
+              <p className="text-[var(--color-charcoal)]/60">
+                {mode === 'signup' ? 'Set up your account to get started' : 'Enter your credentials to access AgriMatch'}
+              </p>
+            </div>
 
             {mode === 'signup' ? (
               <motion.form
@@ -352,58 +274,8 @@ setTimeout(() => {
                     onChange={(e) => setName(e.target.value)}
                     className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
                     placeholder="Your full name"
-                    autoComplete="name"
                   />
                 </div>
-
-                <div>
-                  <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Phone Number</label>
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex items-center px-3 py-3 border-2 border-black/10 rounded-lg bg-[var(--color-surface)]">
-                      <span className="text-sm font-semibold text-[var(--color-charcoal)]/70">+234</span>
-                    </div>
-                    <input
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => {
-                        const cleaned = e.target.value.replace(/\D/g, '')
-                        setPhone(cleaned)
-                        validatePhone(cleaned)
-                      }}
-                      className="flex-1 border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
-                      placeholder="8012345678"
-                      maxLength="10"
-                      autoComplete="tel"
-                    />
-                  </div>
-                  {phoneError && (
-                    <p className={`text-xs mt-1 font-medium ${phoneError.includes('Valid') ? 'text-[var(--color-primary)]' : 'text-orange-600'}`}>
-                      {phoneError}
-                    </p>
-                  )}
-                </div>
-
-                {role === 'farmer' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Harvest Region</label>
-                    <select
-                      required
-                      value={region}
-                      onChange={(e) => setRegion(e.target.value)}
-                      className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm bg-white focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all"
-                    >
-                      <option value="">Select your region</option>
-                      {REGIONS.map((r) => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                  </motion.div>
-                )}
 
                 <div>
                   <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Email</label>
@@ -416,23 +288,52 @@ setTimeout(() => {
                     placeholder="your@email.com"
                     autoComplete="email"
                   />
-                  {emailError && (
-                    <p className={`text-xs mt-1 font-medium ${emailError.includes('already') ? 'text-red-600' : 'text-[var(--color-charcoal)]/60'}`}>
-                      {emailError}
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Phone</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value)
+                      validatePhone(e.target.value)
+                    }}
+                    className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                    placeholder="08012345678"
+                  />
+                  {phoneError && (
+                    <p className={`text-xs mt-1 ${phoneError === 'Valid Nigerian number' ? 'text-green-600' : 'text-red-500'}`}>
+                      {phoneError}
                     </p>
                   )}
                 </div>
 
+                {role === 'farmer' && (
+                  <div>
+                    <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Farm Region</label>
+                    <select
+                      value={region}
+                      onChange={(e) => setRegion(e.target.value)}
+                      className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                    >
+                      <option value="">Select your region</option>
+                      {REGIONS.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Password</label>
-                  <div className="mt-2 relative">
+                  <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
-                      minLength={6}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full border-2 border-black/10 rounded-lg px-4 py-3 pr-14 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
+                      className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 pr-14 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"
                       placeholder="At least 6 characters"
                       autoComplete="new-password"
                     />
