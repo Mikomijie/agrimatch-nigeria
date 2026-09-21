@@ -62,18 +62,17 @@ export async function createPooledOrder(buyerId, cropType, quantityNeeded, deadl
     const totalPrice = item.quantityAllocated * item.listing.price_per_unit
 
     const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        product_id: item.listing.id,
-        listing_id: item.listing.id,
-        buyer_id: buyerId,
-        farmer_id: item.listing.farmer_id,
-        quantity: item.quantityAllocated,
-        total_price: totalPrice,
-        status: 'pending',
-      })
-      .select()
-      .single()
+  .from('orders')
+  .insert({
+    listing_id: item.listing.id,
+    buyer_id: buyerId,
+    farmer_id: item.listing.farmer_id,
+    quantity: item.quantityAllocated,
+    total_price: totalPrice,
+    status: 'pending',
+  })
+  .select()
+  .single()
 
     if (orderError) continue
 

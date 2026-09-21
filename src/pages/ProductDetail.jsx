@@ -228,10 +228,9 @@ function ProductDetail() {
       setPaymentProcessing(true)
       setError(null)
 
-      const { data: orderData, error: orderError } = await supabase
+     const { data: orderData, error: orderError } = await supabase
   .from('orders')
   .insert({
-    product_id: product.id,
     listing_id: product.id,
     buyer_id: user.id,
     farmer_id: product.farmer_id,
