@@ -4,7 +4,7 @@ import { isListingExpired } from './listingHelpers'
 export async function findFulfillment(cropType, quantityNeeded, deadline) {
   const { data: listings, error } = await supabase
     .from('listings')
-    .select('*, profiles(full_name, phone)')
+    .select('*, profiles(full_name, phone_number)')
     .eq('crop_type', cropType)
     .eq('active', true)
     .order('created_at', { ascending: true })
