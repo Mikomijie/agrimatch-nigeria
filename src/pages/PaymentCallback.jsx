@@ -77,8 +77,9 @@ if (!uuidRegex.test(rawId)) {
         const { error: updateError } = await supabase
           .from('orders')
           .update({
-            payment_ref: transactionId,
-            status: 'confirmed',
+  payment_ref: transactionId,
+  payment_status: 'paid',
+  status: 'confirmed',
           })
           .eq('id', orderId)
 

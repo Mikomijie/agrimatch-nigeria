@@ -56,12 +56,13 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
 
         if (response.status === 'successful' || response.status === 'completed') {
           await supabase
-            .from('orders')
-            .update({
-              status: 'confirmed',
-              payment_ref: String(response.transaction_id),
-            })
-            .eq('id', orderId)
+  .from('orders')
+  .update({
+    status: 'confirmed',
+    payment_status: 'paid',
+    payment_ref: String(response.transaction_id),
+  })
+  .eq('id', orderId)
 
           await supabase
             .from('listings')

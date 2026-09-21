@@ -296,10 +296,12 @@ function Auth() {
                 <div>
                   <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Phone</label>
                   <input
-                    type="tel"
+                                       type="tel"
                     value={phone}
+                    maxLength={11}
                     onChange={(e) => {
-                      setPhone(e.target.value)
+                      const val = e.target.value.replace(/\D/g, '')
+                      if (val.length <= 11) setPhone(val)
                       validatePhone(e.target.value)
                     }}
                     className="mt-2 w-full border-2 border-black/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 transition-all bg-white"

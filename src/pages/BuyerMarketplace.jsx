@@ -234,7 +234,11 @@ function BuyerMarketplace() {
 
   const activeFilterCount = [selectedCrop, selectedLocation].filter(Boolean).length
 
-  const openChat = (listing) => {
+    const openChat = (listing) => {
+    if (!user) {
+      navigate('/auth')
+      return
+    }
     setSelectedChat(listing.farmer_id)
     setChatName(listing.profiles?.full_name)
     setShowChat(true)
