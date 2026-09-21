@@ -327,7 +327,7 @@ function OrderTracking() {
                 </div>
               )}
 
-              <div className="pt-4 border-t border-black/10">
+                 <div className="pt-4 border-t border-black/10">
                 <div className="flex items-center gap-3 mb-4">
                   <img
                     loading="lazy"
@@ -340,6 +340,20 @@ function OrderTracking() {
                     <p className="text-xs text-[var(--color-charcoal)]/60 capitalize">Status: {order.status.replace('_', ' ')}</p>
                   </div>
                 </div>
+
+                {order.payment_status === 'pending' && (
+                  <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-amber-800 mb-3">
+                      Payment pending — ₦{Number(order.total_price).toLocaleString()}
+                    </p>
+                    <Link
+                      to={`/product/${order.listing_id}`}
+                      className="block w-full bg-[var(--color-primary)] text-white py-2.5 rounded-lg font-bold text-center hover:brightness-95 transition-all text-sm"
+                    >
+                      Pay Now
+                    </Link>
+                  </div>
+                )}
 
                 {order.status === 'delivered' && (
                   <button
