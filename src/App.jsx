@@ -16,6 +16,7 @@ import Terms from './pages/Terms'
 import RoleSwitch from './pages/RoleSwitch'
 import Auth from './pages/Auth'
 import NotFound from './pages/NotFound'
+import ResetPassword from './pages/ResetPassword'
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
         <Route path="/role-switch" element={<RoleSwitch />} />
         <Route path="/payment-callback" element={<PaymentCallback />} />
         <Route path="/bulk-order" element={<BulkOrderRequest />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/transporter-registration" element={<TransporterRegistration />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

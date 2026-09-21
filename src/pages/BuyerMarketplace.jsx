@@ -234,7 +234,7 @@ function BuyerMarketplace() {
 
   const activeFilterCount = [selectedCrop, selectedLocation].filter(Boolean).length
 
-    const openChat = (listing) => {
+     const openChat = (listing) => {
     if (!user) {
       navigate('/auth')
       return
