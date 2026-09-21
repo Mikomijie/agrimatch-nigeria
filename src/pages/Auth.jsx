@@ -151,6 +151,8 @@ function Auth() {
       return
     }
 
+    await new Promise(resolve => setTimeout(resolve, 500))
+
     const { data: userData, error: profileError } = await supabase
       .from('profiles')
       .select('role')
@@ -158,6 +160,7 @@ function Auth() {
       .single()
 
     if (profileError || !userData) {
+      notify.error('Profile not found')
       setError('Profile not found - please sign up first')
       setSubmitting(false)
       return
@@ -168,7 +171,7 @@ function Auth() {
     setSuccess('Logged in successfully! Redirecting...')
     setTimeout(() => {
       navigate(roleRoutes[userData.role] || '/role-switch')
-    }, 2500)
+    }, 1500)
   }
 
   const handleForgotPassword = async (e) => {

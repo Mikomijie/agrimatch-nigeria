@@ -22,13 +22,15 @@ export function useCurrentUser() {
           .eq('id', authUser.id)
           .single()
 
-        if (error) {
+        if (error || !profile) {
           console.error('Profile fetch error:', error)
           console.log('Auth user ID:', authUser.id)
-          setUser(authUser)
-        } else {
-          setUser(profile)
+          setUser(null)
+          setLoading(false)
+          return
         }
+
+        setUser(profile)
       } catch (err) {
         console.error('fetchUser error:', err)
         setUser(null)
