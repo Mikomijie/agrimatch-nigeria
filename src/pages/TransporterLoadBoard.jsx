@@ -1,6 +1,6 @@
 import { notify } from '../lib/notifications'
 import { Link, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
@@ -165,8 +165,8 @@ function TransporterLoadBoard() {
   const [checkingReg, setCheckingReg] = useState(true)
 
   useEffect(() => {
+    if (!user) return
     async function checkRegistration() {
-      if (!user) return
       const { data } = await supabase
         .from('transporters')
         .select('id')
@@ -175,12 +175,13 @@ function TransporterLoadBoard() {
       setIsRegistered(!!data)
       setCheckingReg(false)
     }
-    if (user) checkRegistration()
+    checkRegistration()
   }, [user])
 
-  async function fetchOrders() {
+  const fetchOrders = useCallback(async (silent = false) => {
     if (!user) return
-    setLoading(true)
+    if (!silent) setLoading(true)
+    setError(null)
 
     let query = supabase
       .from('orders')
@@ -200,15 +201,26 @@ function TransporterLoadBoard() {
     } else {
       setOrders(data || [])
     }
-    setLoading(false)
-  }
+    if (!silent) setLoading(false)
+  }, [user, view])
 
   useEffect(() => {
-    if (user) fetchOrders()
-  }, [view, user])
+    if (!user) return
+    fetchOrders()
+
+    const channel = supabase
+      .channel('transporter-loadboard')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => fetchOrders(true)
+      )
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [fetchOrders])
 
   const handleAccept = async (orderId) => {
-        const { error } = await supabase
+    const { error } = await supabase
       .from('orders')
       .update({ transporter_id: user.id, status: 'confirmed' })
       .eq('id', orderId)
@@ -265,7 +277,7 @@ function TransporterLoadBoard() {
           : 'Delivery confirmed! Order marked as delivered.'
       )
       setPhotoModal(null)
-      fetchOrders()
+      fetchOrders(true)
     }
   }
 
@@ -321,6 +333,12 @@ function TransporterLoadBoard() {
               >
                 ← Back
               </button>
+              <button
+                onClick={() => navigate('/role-switch')}
+                className="text-white/80 hover:text-white transition-colors font-semibold"
+              >
+                Switch Role
+              </button>
               <Link to="/marketplace" className="text-white/80 hover:text-white transition-colors">
                 Marketplace
               </Link>
@@ -345,9 +363,28 @@ function TransporterLoadBoard() {
             </div>
           </div>
         </div>
+
+        {/* Mobile bottom nav */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
+          <Link to="/marketplace" className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/70">
+            <span className="text-lg">🛒</span>
+            Market
+          </Link>
+          <Link to="/dashboard" className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/70">
+            <span className="text-lg">🏠</span>
+            Dashboard
+          </Link>
+          <button
+            onClick={() => navigate('/role-switch')}
+            className="flex flex-col items-center gap-1 text-xs text-[var(--color-primary)]"
+          >
+            <span className="text-lg">🔄</span>
+            Switch Role
+          </button>
+        </nav>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12 pb-24 md:pb-12">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-10 sm:mb-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
