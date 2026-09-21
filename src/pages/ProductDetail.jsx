@@ -229,17 +229,18 @@ function ProductDetail() {
       setError(null)
 
       const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          listing_id: product.id,
-          buyer_id: user.id,
-          farmer_id: product.farmer_id,
-          quantity: quantity,
-          total_price: total,
-          status: 'pending',
-        })
-        .select()
-        .single()
+  .from('orders')
+  .insert({
+    product_id: product.id,
+    listing_id: product.id,
+    buyer_id: user.id,
+    farmer_id: product.farmer_id,
+    quantity: quantity,
+    total_price: total,
+    status: 'pending',
+  })
+  .select()
+  .single()
 
       if (orderError) {
         notify.error('Failed to create order')

@@ -64,6 +64,7 @@ export async function createPooledOrder(buyerId, cropType, quantityNeeded, deadl
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
+        product_id: item.listing.id,
         listing_id: item.listing.id,
         buyer_id: buyerId,
         farmer_id: item.listing.farmer_id,
