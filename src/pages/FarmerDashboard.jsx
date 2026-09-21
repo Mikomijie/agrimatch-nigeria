@@ -132,6 +132,14 @@ function FarmerDashboard() {
       setImageFile(null)
       setImagePreview(null)
       setExpectedHarvestDate('')
+      const { data: refreshed } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('farmer_id', user.id)
+        .order('created_at', { ascending: false })
+      setMyListings(refreshed || [])
+      setListingCount(refreshed?.length || 0)
+      setIsFirstListing(false)
       setTimeout(() => {
         setSuccess(false)
         setNewListingId(null)
@@ -209,7 +217,7 @@ function FarmerDashboard() {
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         () => {
-          setNewOrderMessage('🎉 New order received!')
+          setNewOrderMessage('New order received!')
           setShowOrderNotification(true)
           setTimeout(() => setShowOrderNotification(false), 4000)
         }
@@ -230,7 +238,7 @@ function FarmerDashboard() {
       .subscribe()
 
     return () => supabase.removeChannel(ordersChannel)
-  }, [user, success])
+  }, [user])
 
   useEffect(() => {
     if (!user) return
@@ -295,7 +303,6 @@ function FarmerDashboard() {
 
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)]">
-      {/* Header */}
       <header className="bg-[var(--color-primary-dark)] border-b border-black/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-4 sm:py-5">
           <div className="flex items-center justify-between gap-4">
@@ -304,7 +311,7 @@ function FarmerDashboard() {
             </Link>
             <nav className="hidden md:flex items-center gap-6 sm:gap-8 text-sm font-medium flex-1 justify-center">
               <button onClick={() => navigate(-1)} className="text-white/80 hover:text-white transition-colors font-semibold">
-                ← Back
+                Back
               </button>
               <button onClick={() => navigate('/role-switch')} className="text-white/80 hover:text-white transition-colors font-semibold">
                 Switch Role
@@ -351,48 +358,46 @@ function FarmerDashboard() {
           </div>
         </div>
 
-        {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-  <Link
-    to="/marketplace"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <MarketIcon />Market
-  </Link>
-  <button
-    onClick={() => setShowChat(true)}
-    className="relative flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
-  >
-    <MessagesIcon />Messages
-    {unreadMessages > 0 && (
-      <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-        {unreadMessages}
-      </span>
-    )}
-  </button>
-  <Link
-    to="/buyer-orders"
-    className={`relative flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <OrdersIcon />Orders
-    {pendingOrders > 0 && (
-      <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-        {pendingOrders}
-      </span>
-    )}
-  </Link>
-  <Link
-    to="/logistics"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <LogisticsIcon />Logistics
-  </Link>
-</nav>
+          <Link
+            to="/marketplace"
+            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
+            <MarketIcon />Market
+          </Link>
+          <button
+            onClick={() => setShowChat(true)}
+            className="relative flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
+          >
+            <MessagesIcon />Messages
+            {unreadMessages > 0 && (
+              <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {unreadMessages}
+              </span>
+            )}
+          </button>
+          <Link
+            to="/buyer-orders"
+            className={`relative flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
+            <OrdersIcon />Orders
+            {pendingOrders > 0 && (
+              <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {pendingOrders}
+              </span>
+            )}
+          </Link>
+          <Link
+            to="/logistics"
+            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
+            <LogisticsIcon />Logistics
+          </Link>
+        </nav>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12 pb-24 md:pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-12">
-          {/* LEFT COLUMN */}
           <div className="lg:col-span-2 space-y-8 sm:space-y-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -407,7 +412,6 @@ function FarmerDashboard() {
               </p>
             </motion.div>
 
-            {/* Onboarding tooltip for first-time farmers */}
             {isFirstListing && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -425,7 +429,6 @@ function FarmerDashboard() {
             )}
 
             <form onSubmit={handlePublish} className="space-y-6 sm:space-y-8">
-              {/* 1. Crop Selection */}
               <div className="relative">
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-3 sm:mb-5">
                   1. What are you selling?
@@ -471,7 +474,6 @@ function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* 2. Image Upload */}
               <div>
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
                   2. Upload photo (optional)
@@ -496,7 +498,6 @@ function FarmerDashboard() {
                 )}
               </div>
 
-              {/* 3 & 4. Quantity & Price */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
@@ -534,7 +535,6 @@ function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* 5. Location */}
               <div>
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
                   5. Pickup location
@@ -549,7 +549,6 @@ function FarmerDashboard() {
                 />
               </div>
 
-              {/* 6. Freshness */}
               <div>
                 <label className="block text-xs sm:text-sm font-bold tracking-wider text-[var(--color-charcoal)]/80 uppercase mb-2 sm:mb-3">
                   6. Freshness
@@ -582,7 +581,6 @@ function FarmerDashboard() {
                 )}
               </div>
 
-              {/* Alerts */}
               {error && (
                 <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 sm:p-4">
                   <p className="text-xs sm:text-sm text-red-700 font-medium">{error}</p>
@@ -616,7 +614,6 @@ function FarmerDashboard() {
                 </motion.div>
               )}
 
-              {/* Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
                 <button
                   type="submit"
@@ -635,9 +632,7 @@ function FarmerDashboard() {
             </form>
           </div>
 
-          {/* RIGHT COLUMN */}
           <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-            {/* Profile Card */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -650,7 +645,7 @@ function FarmerDashboard() {
                 </div>
                 <div className="min-w-0">
                   <h3 className="font-bold text-[var(--color-charcoal)] text-sm sm:text-base truncate">{user?.full_name}</h3>
-                  <p className="text-xs text-[var(--color-charcoal)]/50 truncate">{user?.phone}</p>
+                  <p className="text-xs text-[var(--color-charcoal)]/50 truncate">{user?.phone_number}</p>
                 </div>
               </div>
               <div className="border-t border-black/10 pt-4">
@@ -659,10 +654,8 @@ function FarmerDashboard() {
               </div>
             </motion.div>
 
-            {/* Orders Received */}
             <FarmerOrders user={user} />
 
-            {/* Active Listings */}
             <div className="bg-white rounded-lg sm:rounded-xl border border-black/10 p-4 sm:p-6 shadow-sm">
               <h2 className="font-[var(--font-heading)] text-base sm:text-lg text-[var(--color-charcoal)] mb-3 sm:mb-4">My Active Listings</h2>
               <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[var(--color-primary-light)]/25 rounded-lg">
@@ -739,7 +732,7 @@ function FarmerDashboard() {
                               )}
                             </p>
                             <p className="text-xs text-[var(--color-charcoal)]/60">
-                              {listing.quantity}kg · ₦{Number(listing.price_per_unit).toLocaleString()}/kg
+                              {listing.quantity}kg at ₦{Number(listing.price_per_unit).toLocaleString()}/kg
                             </p>
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
@@ -765,7 +758,6 @@ function FarmerDashboard() {
               )}
             </div>
 
-            {/* Market Insight */}
             <div className="bg-white rounded-lg sm:rounded-xl border border-black/10 overflow-hidden shadow-sm">
               <div className="aspect-video bg-[var(--color-surface)] overflow-hidden">
                 <img loading="lazy" src="/images/market/market-general.jpg" alt="Market insight" className="w-full h-full object-cover" />
@@ -778,7 +770,6 @@ function FarmerDashboard() {
               </div>
             </div>
 
-            {/* Quick Tips */}
             <div className="bg-[var(--color-primary-dark)] text-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm">
               <h3 className="font-[var(--font-heading)] mb-3 sm:mb-4 text-sm sm:text-base">Quick Tips</h3>
               <ul className="space-y-2 text-xs sm:text-sm">
@@ -800,7 +791,6 @@ function FarmerDashboard() {
         </div>
       </main>
 
-      {/* Order Notification Toast */}
       {showOrderNotification && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -812,7 +802,6 @@ function FarmerDashboard() {
         </motion.div>
       )}
 
-      {/* Confirm Delete Modal */}
       {confirmDelete && (
         <ConfirmModal
           title="Delete Listing?"
@@ -823,7 +812,6 @@ function FarmerDashboard() {
         />
       )}
 
-      {/* Chat Bubble */}
       {!showChat && !selectedChat && (
         <button
           onClick={() => setShowChat(true)}
@@ -838,7 +826,6 @@ function FarmerDashboard() {
         </button>
       )}
 
-      {/* Desktop Chat Panel */}
       {(showChat || selectedChat) && (
         <div className="hidden md:block fixed right-6 bottom-6 z-50 w-96 shadow-2xl rounded-lg overflow-hidden" style={{ height: '480px' }}>
           {!selectedChat ? (
@@ -858,7 +845,6 @@ function FarmerDashboard() {
         </div>
       )}
 
-      {/* Mobile Chat Modal */}
       {(showChat || selectedChat) && (
         <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col" onClick={(e) => { if (e.target === e.currentTarget) { setShowChat(false); setSelectedChat(null) } }}>
           <div className="flex flex-col bg-white rounded-t-2xl overflow-hidden mt-auto" style={{ height: '85dvh' }}>

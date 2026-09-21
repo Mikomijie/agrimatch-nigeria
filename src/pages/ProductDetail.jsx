@@ -36,9 +36,9 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
     amount: total,
     currency: 'NGN',
     payment_options: 'card,mobilemoney,ussd',
-    customer: {
+       customer: {
       email: user?.email || 'buyer@agrimatch.ng',
-      phone_number: user?.phone || '08000000000',
+      phone_number: user?.phone_number || '08000000000',
       name: user?.full_name || 'AgriMatch Buyer',
     },
     customizations: {
