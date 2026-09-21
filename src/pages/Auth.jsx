@@ -61,8 +61,8 @@ function Auth() {
       setPhoneError('')
       return
     }
-    if (cleaned.length !== 10) {
-      setPhoneError(`Need 10 digits (you have ${cleaned.length})`)
+      if (cleaned.length !== 11) {
+      setPhoneError(`Need 11 digits (you have ${cleaned.length})`)
     } else {
       setPhoneError('Valid Nigerian number')
     }

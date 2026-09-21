@@ -208,9 +208,9 @@ function TransporterLoadBoard() {
   }, [view, user])
 
   const handleAccept = async (orderId) => {
-    const { error } = await supabase
+        const { error } = await supabase
       .from('orders')
-      .update({ transporter_id: user.id, status: 'in_transit' })
+      .update({ transporter_id: user.id, status: 'confirmed' })
       .eq('id', orderId)
 
     if (error) {
