@@ -1,3 +1,4 @@
+import { LeafIcon } from '../components/NavIcons'
 import { notify } from '../lib/notifications'
 import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
@@ -501,8 +502,11 @@ function TransporterLoadBoard() {
         />
       )}
 
-      <footer className="border-t border-black/10 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-[var(--color-charcoal)]/60 mt-12 sm:mt-16">
-        <p className="font-bold text-[var(--color-charcoal)] mb-2">AgriMatch</p>
+          <footer className="border-t border-black/10 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-[var(--color-charcoal)]/60 mt-12 sm:mt-16">
+        <div className="flex items-center justify-center gap-2 mb-3">
+          <LeafIcon className="w-6 h-6 text-[var(--color-primary)]" />
+          <p className="font-bold text-[var(--color-charcoal)]">AgriMatch</p>
+        </div>
         <p>© 2026 AgriMatch. Benin City, Edo State.</p>
       </footer>
     </div>

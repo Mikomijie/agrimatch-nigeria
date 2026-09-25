@@ -34,19 +34,19 @@ export function useCurrentUser() {
       } catch (err) {
         console.error('fetchUser error:', err)
         setUser(null)
+      } finally {
+        setLoading(false)
       }
-      
-      setLoading(false)
     }
 
     fetchUser()
 
-    const { data } = supabase.auth.onAuthStateChange(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       fetchUser()
     })
 
     return () => {
-      data?.subscription?.unsubscribe()
+      subscription?.unsubscribe()
     }
   }, [])
 
