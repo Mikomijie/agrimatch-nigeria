@@ -210,11 +210,12 @@ function TransporterLoadBoard() {
     }
   }, [user, view])
 
-  useEffect(() => {
-    if (user && isRegistered) {
-      fetchOrders()
-    }
-  }, [user, view, isRegistered, fetchOrders])
+ useEffect(() => {
+  // Only fetch when view changes (Available → My Jobs tab)
+  if (user && isRegistered && view) {
+    fetchOrders()
+  }
+}, [view, user, isRegistered, fetchOrders])
 
   const handleAccept = async (orderId) => {
     const { error } = await supabase
