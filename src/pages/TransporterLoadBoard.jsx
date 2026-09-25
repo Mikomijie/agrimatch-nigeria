@@ -157,7 +157,7 @@ function TransporterLoadBoard() {
   const { user, loading: userLoading } = useCurrentUser()
   const [orders, setOrders] = useState([])
   const [view, setView] = useState('available')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [photoModal, setPhotoModal] = useState(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -178,46 +178,42 @@ function TransporterLoadBoard() {
     checkRegistration()
   }, [user])
 
-  const fetchOrders = useCallback(async (silent = false) => {
+  const fetchOrders = useCallback(async () => {
     if (!user) return
-    if (!silent) setLoading(true)
+    setLoading(true)
     setError(null)
 
-    let query = supabase
-      .from('orders')
-      .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
-      .order('created_at', { ascending: false })
+    try {
+      let query = supabase
+        .from('orders')
+        .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
+        .order('created_at', { ascending: false })
 
-    if (view === 'available') {
-      query = query.eq('status', 'confirmed').is('transporter_id', null)
-    } else {
-      query = query.eq('transporter_id', user.id)
+      if (view === 'available') {
+        query = query.eq('status', 'confirmed').is('transporter_id', null)
+      } else {
+        query = query.eq('transporter_id', user.id)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        setError(error.message)
+      } else {
+        setOrders(data || [])
+      }
+    } catch (err) {
+      setError('Failed to fetch orders')
+    } finally {
+      setLoading(false)
     }
-
-    const { data, error } = await query
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setOrders(data || [])
-    }
-    if (!silent) setLoading(false)
   }, [user, view])
 
   useEffect(() => {
-    if (!user) return
-    fetchOrders()
-
-    const channel = supabase
-      .channel('transporter-loadboard')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        () => fetchOrders(true)
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [fetchOrders])
+    if (user && isRegistered) {
+      fetchOrders()
+    }
+  }, [user, view, isRegistered, fetchOrders])
 
   const handleAccept = async (orderId) => {
     const { error } = await supabase
@@ -277,7 +273,7 @@ function TransporterLoadBoard() {
           : 'Delivery confirmed! Order marked as delivered.'
       )
       setPhotoModal(null)
-      fetchOrders(true)
+      fetchOrders()
     }
   }
 
@@ -288,7 +284,7 @@ function TransporterLoadBoard() {
   )
 
   if (!user) return (
-    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
+    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center px-6">
       <div className="text-center">
         <p className="text-[var(--color-charcoal)]/60 mb-4">Please log in as a transporter to accept loads.</p>
         <Link to="/auth" className="text-[var(--color-primary)] underline font-semibold">Go to Login</Link>
@@ -314,6 +310,36 @@ function TransporterLoadBoard() {
         >
           Complete Registration →
         </Link>
+      </div>
+    </div>
+  )
+
+  if (user?.role !== 'transporter') return (
+    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center px-6">
+      <div className="text-center max-w-md">
+        <div className="w-20 h-20 bg-[var(--color-secondary-light)]/30 rounded-full flex items-center justify-center mx-auto mb-6">
+          <span className="text-4xl">🚚</span>
+        </div>
+        <h2 className="font-[var(--font-heading)] text-3xl text-[var(--color-charcoal)] mb-4">
+          Transporter Only
+        </h2>
+        <p className="text-[var(--color-charcoal)]/70 mb-8">
+          This page is only for transporters. Switch to transporter role or create a transporter account.
+        </p>
+        <div className="flex gap-3 justify-center flex-wrap">
+          <Link
+            to="/role-switch"
+            className="inline-block bg-[var(--color-primary)] text-white px-6 py-3 rounded-lg font-bold hover:brightness-95 transition-all"
+          >
+            Switch Role
+          </Link>
+          <Link
+            to="/transporter-registration"
+            className="inline-block border-2 border-[var(--color-primary)] text-[var(--color-primary)] px-6 py-3 rounded-lg font-bold hover:bg-[var(--color-primary)]/5 transition-all"
+          >
+            Register
+          </Link>
+        </div>
       </div>
     </div>
   )
@@ -354,7 +380,7 @@ function TransporterLoadBoard() {
               <button
                 onClick={async () => {
                   await supabase.auth.signOut()
-                  window.location.href = '/'
+                  navigate('/')
                 }}
                 className="text-xs sm:text-sm font-semibold text-white hover:text-white/80 transition-colors border-2 border-white/40 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg whitespace-nowrap"
               >
@@ -364,7 +390,6 @@ function TransporterLoadBoard() {
           </div>
         </div>
 
-        {/* Mobile bottom nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
           <Link to="/marketplace" className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/70">
             <span className="text-lg">🛒</span>
@@ -402,7 +427,7 @@ function TransporterLoadBoard() {
             </p>
           </motion.div>
 
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-shrink-0 flex-wrap">
             <button
               onClick={() => setView('available')}
               className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm font-bold border-2 transition-all ${
@@ -422,6 +447,13 @@ function TransporterLoadBoard() {
               }`}
             >
               My Jobs
+            </button>
+            <button
+              onClick={() => fetchOrders()}
+              disabled={loading}
+              className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm font-bold border-2 border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-all disabled:opacity-60"
+            >
+              {loading ? 'Refreshing...' : '🔄 Refresh'}
             </button>
           </div>
         </div>
