@@ -1,7 +1,6 @@
-import { LeafIcon } from '../components/NavIcons'
 import { notify } from '../lib/notifications'
 import { Link, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
@@ -87,7 +86,8 @@ function LoadCard({ order, onAccept, onOpenPhotoModal, isMyJob }) {
         <img
           src={order.listings?.image_url}
           alt={order.listings?.crop_type}
-          loading="lazy" className="w-full h-full object-cover"
+          loading="lazy"
+          className="w-full h-full object-cover"
         />
         <div className="absolute top-3 left-3 bg-white px-3 py-1.5 rounded-lg text-xs font-bold text-[var(--color-charcoal)]">
           {isMyJob ? order.status : 'Awaiting Pickup'}
@@ -158,7 +158,7 @@ function TransporterLoadBoard() {
   const { user, loading: userLoading } = useCurrentUser()
   const [orders, setOrders] = useState([])
   const [view, setView] = useState('available')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [photoModal, setPhotoModal] = useState(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -179,43 +179,48 @@ function TransporterLoadBoard() {
     checkRegistration()
   }, [user])
 
-  const fetchOrders = useCallback(async () => {
-    if (!user) return
-    setLoading(true)
-    setError(null)
+  async function fetchOrders() {
+    let query = supabase
+      .from('orders')
+      .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
+      .order('created_at', { ascending: false })
 
-    try {
-      let query = supabase
-        .from('orders')
-        .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
-        .order('created_at', { ascending: false })
-
-      if (view === 'available') {
-        query = query.eq('status', 'confirmed').is('transporter_id', null)
-      } else {
-        query = query.eq('transporter_id', user.id)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        setError(error.message)
-      } else {
-        setOrders(data || [])
-      }
-    } catch (err) {
-      setError('Failed to fetch orders')
-    } finally {
-      setLoading(false)
+    if (view === 'available') {
+      query = query.eq('status', 'confirmed').is('transporter_id', null)
+    } else {
+      query = query.eq('transporter_id', user.id)
     }
-  }, [user, view])
 
- useEffect(() => {
-  // Only fetch when view changes (Available → My Jobs tab)
-  if (user && isRegistered && view) {
-    fetchOrders()
+    const { data, error } = await query
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setOrders(data || [])
+    }
+
+    setLoading(false)
   }
-}, [view, user, isRegistered, fetchOrders])
+
+  useEffect(() => {
+    if (user && isRegistered) {
+      fetchOrders()
+    }
+  }, [view, user, isRegistered])
+
+  useEffect(() => {
+    if (!user) return
+
+    const channel = supabase
+      .channel('transporter-loadboard')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => fetchOrders()
+      )
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [user, view])
 
   const handleAccept = async (orderId) => {
     const { error } = await supabase
@@ -286,7 +291,7 @@ function TransporterLoadBoard() {
   )
 
   if (!user) return (
-    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center px-6">
+    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
       <div className="text-center">
         <p className="text-[var(--color-charcoal)]/60 mb-4">Please log in as a transporter to accept loads.</p>
         <Link to="/auth" className="text-[var(--color-primary)] underline font-semibold">Go to Login</Link>
@@ -429,7 +434,7 @@ function TransporterLoadBoard() {
             </p>
           </motion.div>
 
-          <div className="flex gap-2 flex-shrink-0 flex-wrap">
+          <div className="flex gap-2 flex-shrink-0">
             <button
               onClick={() => setView('available')}
               className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm font-bold border-2 transition-all ${
@@ -449,13 +454,6 @@ function TransporterLoadBoard() {
               }`}
             >
               My Jobs
-            </button>
-            <button
-              onClick={() => fetchOrders()}
-              disabled={loading}
-              className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm font-bold border-2 border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 transition-all disabled:opacity-60"
-            >
-              {loading ? 'Refreshing...' : '🔄 Refresh'}
             </button>
           </div>
         </div>
@@ -503,11 +501,8 @@ function TransporterLoadBoard() {
         />
       )}
 
-          <footer className="border-t border-black/10 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-[var(--color-charcoal)]/60 mt-12 sm:mt-16">
-        <div className="flex items-center justify-center gap-2 mb-3">
-          <LeafIcon className="w-6 h-6 text-[var(--color-primary)]" />
-          <p className="font-bold text-[var(--color-charcoal)]">AgriMatch</p>
-        </div>
+      <footer className="border-t border-black/10 px-4 sm:px-6 md:px-10 py-8 sm:py-10 text-center text-sm text-[var(--color-charcoal)]/60 mt-12 sm:mt-16">
+        <p className="font-bold text-[var(--color-charcoal)] mb-2">AgriMatch</p>
         <p>© 2026 AgriMatch. Benin City, Edo State.</p>
       </footer>
     </div>
