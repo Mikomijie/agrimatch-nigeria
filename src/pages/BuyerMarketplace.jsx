@@ -202,7 +202,6 @@ function BuyerMarketplace() {
     return () => { document.body.style.overflow = '' }
   }, [showChat, selectedChat])
 
-  // Pull to refresh
   const handleTouchStart = (e) => {
     if (window.scrollY === 0) {
       setPullStart(e.touches[0].clientY)
@@ -234,11 +233,7 @@ function BuyerMarketplace() {
 
   const activeFilterCount = [selectedCrop, selectedLocation].filter(Boolean).length
 
-     const openChat = (listing) => {
-    if (!user) {
-      navigate('/auth')
-      return
-    }
+  const openChat = (listing) => {
     setSelectedChat(listing.farmer_id)
     setChatName(listing.profiles?.full_name)
     setShowChat(true)
@@ -255,7 +250,6 @@ function BuyerMarketplace() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Pull to refresh indicator */}
       {pulling && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4">
           <div className="bg-[var(--color-primary)] text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg">
@@ -309,34 +303,33 @@ function BuyerMarketplace() {
           )}
         </div>
 
-        {/* Mobile bottom nav with active states */}
         {user && (
           <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-  <Link
-    to="/dashboard"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <HomeIcon />Dashboard
-  </Link>
-  <Link
-    to="/buyer-orders"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <OrdersIcon />Orders
-  </Link>
-  <Link
-    to="/logistics"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <LogisticsIcon />Logistics
-  </Link>
-  <button
-    onClick={() => navigate('/role-switch')}
-    className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
-  >
-    <SwitchIcon />Switch
-  </button>
-</nav>
+            <Link
+              to="/dashboard"
+              className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+            >
+              <HomeIcon />Dashboard
+            </Link>
+            <Link
+              to="/buyer-orders"
+              className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+            >
+              <OrdersIcon />Orders
+            </Link>
+            <Link
+              to="/logistics"
+              className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+            >
+              <LogisticsIcon />Logistics
+            </Link>
+            <button
+              onClick={() => navigate('/role-switch')}
+              className="flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
+            >
+              <SwitchIcon />Switch
+            </button>
+          </nav>
         )}
       </header>
 
@@ -471,7 +464,6 @@ function BuyerMarketplace() {
           </motion.aside>
 
           <div className="md:col-span-3">
-            {/* Skeleton loading */}
             {loading && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(6)].map((_, i) => (
@@ -480,7 +472,6 @@ function BuyerMarketplace() {
               </div>
             )}
 
-            {/* Error state */}
             {!loading && error && (
               <div className="text-center py-12">
                 <p className="text-4xl mb-4">⚠️</p>
@@ -494,7 +485,6 @@ function BuyerMarketplace() {
               </div>
             )}
 
-            {/* Empty state */}
             {!loading && !error && listings.length === 0 && (
               <div className="text-center py-16">
                 <p className="text-5xl mb-4">🌾</p>
