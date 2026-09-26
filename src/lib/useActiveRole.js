@@ -2,11 +2,19 @@ import { useState, useEffect } from 'react'
 
 export function useActiveRole() {
   const [activeRole, setActiveRole] = useState(() => {
-    return localStorage.getItem('activeRole') || 'farmer'
+    try {
+      return localStorage.getItem('activeRole') || 'farmer'
+    } catch {
+      return 'farmer'
+    }
   })
 
   useEffect(() => {
-    localStorage.setItem('activeRole', activeRole)
+    try {
+      localStorage.setItem('activeRole', activeRole)
+    } catch {
+      // private/incognito mode — ignore
+    }
   }, [activeRole])
 
   return [activeRole, setActiveRole]

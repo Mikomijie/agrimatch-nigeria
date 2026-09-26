@@ -197,8 +197,9 @@ function FarmerDashboard() {
     setConfirmDelete(null)
   }
 
+  // Fetch listings on load
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
 
     async function fetchMyListings() {
       const { data } = await supabase
@@ -211,11 +212,16 @@ function FarmerDashboard() {
       setIsFirstListing(data?.length === 0)
     }
     fetchMyListings()
+  }, [user?.id])
+
+  // Real-time orders + listings updates
+  useEffect(() => {
+    if (!user?.id) return
 
     const ordersChannel = supabase
       .channel('farmer-new-orders')
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders' },
+        { event: 'INSERT', schema: 'public', table: 'orders', filter: `farmer_id=eq.${user.id}` },
         () => {
           setNewOrderMessage('New order received!')
           setShowOrderNotification(true)
@@ -238,10 +244,11 @@ function FarmerDashboard() {
       .subscribe()
 
     return () => supabase.removeChannel(ordersChannel)
-  }, [user])
+  }, [user?.id])
 
+  // Unread badges
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
 
     async function fetchBadges() {
       const { data: msgs } = await supabase
@@ -275,8 +282,9 @@ function FarmerDashboard() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [user])
+  }, [user?.id])
 
+  // Lock body scroll when chat is open
   useEffect(() => {
     if (showChat || selectedChat) {
       document.body.style.overflow = 'hidden'

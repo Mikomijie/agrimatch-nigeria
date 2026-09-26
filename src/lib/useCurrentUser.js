@@ -24,7 +24,6 @@ export function useCurrentUser() {
 
         if (error || !profile) {
           console.error('Profile fetch error:', error)
-          console.log('Auth user ID:', authUser.id)
           setUser(null)
           setLoading(false)
           return
@@ -41,8 +40,13 @@ export function useCurrentUser() {
 
     fetchUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      fetchUser()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null)
+        setLoading(false)
+      } else if (event === 'SIGNED_IN' && session) {
+        fetchUser()
+      }
     })
 
     return () => {

@@ -61,7 +61,7 @@ function Auth() {
       setPhoneError('')
       return
     }
-      if (cleaned.length !== 11) {
+    if (cleaned.length !== 11) {
       setPhoneError(`Need 11 digits (you have ${cleaned.length})`)
     } else {
       setPhoneError('Valid Nigerian number')
@@ -150,8 +150,6 @@ function Auth() {
       setSubmitting(false)
       return
     }
-
-    await new Promise(resolve => setTimeout(resolve, 500))
 
     const { data: userData, error: profileError } = await supabase
       .from('profiles')
@@ -296,7 +294,7 @@ function Auth() {
                 <div>
                   <label className="text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase">Phone</label>
                   <input
-                                       type="tel"
+                    type="tel"
                     value={phone}
                     maxLength={11}
                     onChange={(e) => {

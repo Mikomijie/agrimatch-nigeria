@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
@@ -101,56 +101,57 @@ function BuyerMarketplace() {
   const [pullStart, setPullStart] = useState(null)
   const [pulling, setPulling] = useState(false)
 
-  const fetchListings = useCallback(async () => {
-    try {
-      let query = supabase
-        .from('listings')
-        .select('*, profiles(full_name)')
-        .eq('active', true)
-        .order('created_at', { ascending: false })
-
-      if (selectedCrop) query = query.eq('crop_type', selectedCrop)
-      if (selectedLocation) query = query.ilike('location', `%${selectedLocation}%`)
-
-      const { data, error } = await query
-
-      if (error) {
-        notify.error('Failed to load listings')
-        setError(error.message)
-      } else {
-        let filtered = data.filter(
-          (listing) =>
-            Number(listing.price_per_unit) >= priceRange[0] &&
-            Number(listing.price_per_unit) <= priceRange[1] &&
-            !isListingExpired(listing) &&
-            listing.quantity > 0
-        )
-
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase()
-          filtered = filtered.filter(
-            (listing) =>
-              listing.crop_type?.toLowerCase().includes(q) ||
-              listing.location?.toLowerCase().includes(q) ||
-              listing.freshness?.toLowerCase().includes(q) ||
-              listing.profiles?.full_name?.toLowerCase().includes(q)
-          )
-        }
-
-        setListings(filtered)
-        setError(null)
-      }
-    } catch (err) {
-      notify.error('Something went wrong loading listings')
-      setError(err.message)
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [selectedCrop, selectedLocation, priceRange, searchQuery])
-
   useEffect(() => {
     setLoading(true)
+
+    async function fetchListings() {
+      try {
+        let query = supabase
+          .from('listings')
+          .select('*, profiles(full_name)')
+          .eq('active', true)
+          .order('created_at', { ascending: false })
+
+        if (selectedCrop) query = query.eq('crop_type', selectedCrop)
+        if (selectedLocation) query = query.ilike('location', `%${selectedLocation}%`)
+
+        const { data, error } = await query
+
+        if (error) {
+          notify.error('Failed to load listings')
+          setError(error.message)
+        } else {
+          let filtered = data.filter(
+            (listing) =>
+              Number(listing.price_per_unit) >= priceRange[0] &&
+              Number(listing.price_per_unit) <= priceRange[1] &&
+              !isListingExpired(listing) &&
+              listing.quantity > 0
+          )
+
+          if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase()
+            filtered = filtered.filter(
+              (listing) =>
+                listing.crop_type?.toLowerCase().includes(q) ||
+                listing.location?.toLowerCase().includes(q) ||
+                listing.freshness?.toLowerCase().includes(q) ||
+                listing.profiles?.full_name?.toLowerCase().includes(q)
+            )
+          }
+
+          setListings(filtered)
+          setError(null)
+        }
+      } catch (err) {
+        notify.error('Something went wrong loading listings')
+        setError(err.message)
+      } finally {
+        setLoading(false)
+        setRefreshing(false)
+      }
+    }
+
     fetchListings()
 
     const listingsChannel = supabase
@@ -162,7 +163,7 @@ function BuyerMarketplace() {
       .subscribe()
 
     return () => supabase.removeChannel(listingsChannel)
-  }, [fetchListings])
+  }, [selectedCrop, selectedLocation, priceRange, searchQuery])
 
   useEffect(() => {
     if (!user) return
@@ -191,7 +192,7 @@ function BuyerMarketplace() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [user])
+  }, [user?.id])
 
   useEffect(() => {
     if (showChat || selectedChat) {
@@ -203,9 +204,7 @@ function BuyerMarketplace() {
   }, [showChat, selectedChat])
 
   const handleTouchStart = (e) => {
-    if (window.scrollY === 0) {
-      setPullStart(e.touches[0].clientY)
-    }
+    if (window.scrollY === 0) setPullStart(e.touches[0].clientY)
   }
 
   const handleTouchMove = (e) => {
@@ -217,7 +216,6 @@ function BuyerMarketplace() {
   const handleTouchEnd = () => {
     if (pulling) {
       setRefreshing(true)
-      fetchListings()
       notify.info('Refreshing listings...')
     }
     setPullStart(null)
@@ -477,7 +475,7 @@ function BuyerMarketplace() {
                 <p className="text-4xl mb-4">⚠️</p>
                 <p className="text-[var(--color-charcoal)]/60 mb-4">Failed to load listings.</p>
                 <button
-                  onClick={() => { setLoading(true); fetchListings() }}
+                  onClick={() => setSelectedCrop(selectedCrop)}
                   className="text-[var(--color-primary)] font-semibold underline hover:no-underline"
                 >
                   Try again

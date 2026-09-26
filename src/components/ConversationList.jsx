@@ -6,57 +6,73 @@ function ConversationList({ currentUser, onSelectConversation, onClose }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchConversations()
-  }, [currentUser])
-
-  const fetchConversations = async () => {
     if (!currentUser?.id) return
-    try {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('messages')
-        .select('id, sender_id, receiver_id, content, created_at')
-        .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
-        .order('created_at', { ascending: false })
-        .limit(100)
 
-      if (error || !data || data.length === 0) {
-        setConversations([])
-        setLoading(false)
-        return
-      }
+    async function fetchConversations() {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('messages')
+          .select('id, sender_id, receiver_id, content, created_at')
+          .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+          .order('created_at', { ascending: false })
+          .limit(100)
 
-      const partnerIds = [...new Set(data.map(msg =>
-        msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id
-      ))]
+        if (error || !data || data.length === 0) {
+          setConversations([])
+          setLoading(false)
+          return
+        }
 
-      const { data: partners } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', partnerIds)
+        const partnerIds = [...new Set(data.map(msg =>
+          msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id
+        ))]
 
-      const partnerMap = Object.fromEntries((partners || []).map(p => [p.id, p.full_name]))
+        const { data: partners } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', partnerIds)
 
-      const grouped = {}
-      for (const msg of data) {
-        const partnerId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id
-        if (!grouped[partnerId]) {
-          grouped[partnerId] = {
-            id: partnerId,
-            name: partnerMap[partnerId] || 'Unknown',
-            lastMessage: msg.content,
-            lastTime: msg.created_at,
+        const partnerMap = Object.fromEntries((partners || []).map(p => [p.id, p.full_name]))
+
+        const grouped = {}
+        for (const msg of data) {
+          const partnerId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id
+          if (!grouped[partnerId]) {
+            grouped[partnerId] = {
+              id: partnerId,
+              name: partnerMap[partnerId] || 'Unknown',
+              lastMessage: msg.content,
+              lastTime: msg.created_at,
+            }
           }
         }
-      }
 
-      setConversations(Object.values(grouped))
-      setLoading(false)
-    } catch (err) {
-      setConversations([])
-      setLoading(false)
+        setConversations(Object.values(grouped))
+        setLoading(false)
+      } catch (err) {
+        setConversations([])
+        setLoading(false)
+      }
     }
-  }
+
+    fetchConversations()
+
+    const channel = supabase
+      .channel(`conversation-list-${currentUser.id}`)
+      .on('postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${currentUser.id}`,
+        },
+        () => fetchConversations()
+      )
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [currentUser?.id])
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg overflow-hidden shadow-xl">

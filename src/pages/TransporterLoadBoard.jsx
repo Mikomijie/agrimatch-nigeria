@@ -166,7 +166,7 @@ function TransporterLoadBoard() {
   const [checkingReg, setCheckingReg] = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
     async function checkRegistration() {
       const { data } = await supabase
         .from('transporters')
@@ -177,42 +177,43 @@ function TransporterLoadBoard() {
       setCheckingReg(false)
     }
     checkRegistration()
-  }, [user])
-
-  async function fetchOrders() {
-    let query = supabase
-      .from('orders')
-      .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
-      .order('created_at', { ascending: false })
-
-    if (view === 'available') {
-      query = query.eq('status', 'confirmed').is('transporter_id', null)
-    } else {
-      query = query.eq('transporter_id', user.id)
-    }
-
-    const { data, error } = await query
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setOrders(data || [])
-    }
-
-    setLoading(false)
-  }
+  }, [user?.id])
 
   useEffect(() => {
-    if (user && isRegistered) {
-      fetchOrders()
-    }
-  }, [view, user, isRegistered])
+    if (!user?.id || !isRegistered) return
 
-  useEffect(() => {
-    if (!user) return
+    async function fetchOrders() {
+      try {
+        let query = supabase
+          .from('orders')
+          .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
+          .order('created_at', { ascending: false })
+
+        if (view === 'available') {
+          query = query.eq('status', 'confirmed').is('transporter_id', null)
+        } else {
+          query = query.eq('transporter_id', user.id)
+        }
+
+        const { data, error } = await query
+
+        if (error) {
+          setError(error.message)
+        } else {
+          setOrders(data || [])
+          setError(null)
+        }
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchOrders()
 
     const channel = supabase
-      .channel('transporter-loadboard')
+      .channel(`transporter-loadboard-${view}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
         () => fetchOrders()
@@ -220,9 +221,10 @@ function TransporterLoadBoard() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [user, view])
+  }, [user?.id, view, isRegistered])
 
   const handleAccept = async (orderId) => {
+    if (!user?.id) return
     const { error } = await supabase
       .from('orders')
       .update({ transporter_id: user.id, status: 'confirmed' })
@@ -263,10 +265,7 @@ function TransporterLoadBoard() {
 
     const { error: updateError } = await supabase
       .from('orders')
-      .update({
-        [photoColumn]: photoUrl,
-        status: newStatus,
-      })
+      .update({ [photoColumn]: photoUrl, status: newStatus })
       .eq('id', photoModal.order.id)
 
     setUploadingPhoto(false)
@@ -280,7 +279,6 @@ function TransporterLoadBoard() {
           : 'Delivery confirmed! Order marked as delivered.'
       )
       setPhotoModal(null)
-      fetchOrders()
     }
   }
 

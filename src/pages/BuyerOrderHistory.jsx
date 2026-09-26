@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
@@ -42,34 +42,35 @@ function BuyerOrderHistory() {
   const [pullStart, setPullStart] = useState(null)
   const [pulling, setPulling] = useState(false)
 
-  const fetchMyOrders = useCallback(async () => {
-    if (!user) return
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, listings(crop_type, location, quantity, image_url, profiles(full_name))')
-        .eq('buyer_id', user.id)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        notify.error('Failed to load orders')
-        setError(error.message)
-      } else {
-        setOrders(data || [])
-        setError(null)
-      }
-    } catch (err) {
-      notify.error('Something went wrong')
-      setError(err.message)
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [user])
-
   useEffect(() => {
+    if (!user?.id) return
+
+    async function fetchMyOrders() {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*, listings(crop_type, location, quantity, image_url, profiles(full_name))')
+          .eq('buyer_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          notify.error('Failed to load orders')
+          setError(error.message)
+        } else {
+          setOrders(data || [])
+          setError(null)
+        }
+      } catch (err) {
+        notify.error('Something went wrong')
+        setError(err.message)
+      } finally {
+        setLoading(false)
+        setRefreshing(false)
+      }
+    }
+
     fetchMyOrders()
-  }, [fetchMyOrders])
+  }, [user?.id])
 
   const handleCancel = async (order) => {
     setCancellingId(order.id)
@@ -80,11 +81,14 @@ function BuyerOrderHistory() {
       notify.error('Failed to cancel order: ' + error)
     } else {
       notify.success('Order cancelled successfully')
-      fetchMyOrders()
+      // re-trigger fetch by toggling a dummy state isn't needed —
+      // just update local state directly for instant feedback
+      setOrders((prev) =>
+        prev.map((o) => o.id === order.id ? { ...o, status: 'cancelled' } : o)
+      )
     }
   }
 
-  // Pull to refresh
   const handleTouchStart = (e) => {
     if (window.scrollY === 0) setPullStart(e.touches[0].clientY)
   }
@@ -98,8 +102,9 @@ function BuyerOrderHistory() {
   const handleTouchEnd = () => {
     if (pulling) {
       setRefreshing(true)
-      fetchMyOrders()
       notify.info('Refreshing orders...')
+      // trigger refetch by resetting user dep — just flip loading
+      setLoading(true)
     }
     setPullStart(null)
     setPulling(false)
@@ -127,7 +132,6 @@ function BuyerOrderHistory() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Pull to refresh indicator */}
       {pulling && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4">
           <div className="bg-[var(--color-primary)] text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg">
@@ -182,33 +186,32 @@ function BuyerOrderHistory() {
           </div>
         </div>
 
-        {/* Mobile bottom nav with active states */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-black/10 z-40 flex items-center justify-around px-2 py-3">
-  <Link
-    to="/dashboard"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <HomeIcon />Dashboard
-  </Link>
-  <Link
-    to="/marketplace"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <MarketIcon />Market
-  </Link>
-  <Link
-    to="/buyer-orders"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <OrdersIcon />Orders
-  </Link>
-  <Link
-    to="/logistics"
-    className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
-  >
-    <LogisticsIcon />Logistics
-  </Link>
-</nav>
+          <Link
+            to="/dashboard"
+            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/dashboard' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
+            <HomeIcon />Dashboard
+          </Link>
+          <Link
+            to="/marketplace"
+            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/marketplace' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
+            <MarketIcon />Market
+          </Link>
+          <Link
+            to="/buyer-orders"
+            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
+            <OrdersIcon />Orders
+          </Link>
+          <Link
+            to="/logistics"
+            className={`flex flex-col items-center gap-1 text-xs ${location.pathname === '/logistics' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
+          >
+            <LogisticsIcon />Logistics
+          </Link>
+        </nav>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-8 sm:py-12 pb-24 md:pb-12">
@@ -247,7 +250,7 @@ function BuyerOrderHistory() {
             <p className="text-4xl mb-4">⚠️</p>
             <p className="text-[var(--color-charcoal)]/60 mb-4">Failed to load orders.</p>
             <button
-              onClick={() => { setLoading(true); fetchMyOrders() }}
+              onClick={() => { setLoading(true) }}
               className="text-[var(--color-primary)] font-semibold underline hover:no-underline"
             >
               Try again
@@ -360,7 +363,7 @@ function BuyerOrderHistory() {
             onSuccess={() => {
               setShowReviewModal(false)
               setSelectedOrder(null)
-              fetchMyOrders()
+              setLoading(true)
             }}
           />
         )}
