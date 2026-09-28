@@ -165,7 +165,6 @@ function TransporterLoadBoard() {
   const [isRegistered, setIsRegistered] = useState(false)
   const [checkingReg, setCheckingReg] = useState(true)
 
-  // Step 1: check registration — runs once when user is available
   useEffect(() => {
     if (!user?.id) return
     async function checkRegistration() {
@@ -180,36 +179,39 @@ function TransporterLoadBoard() {
     checkRegistration()
   }, [user?.id])
 
-  // Step 2: fetch orders — Ghana pattern: plain async inside useEffect
   useEffect(() => {
     if (!user?.id || !isRegistered) return
 
     async function fetchOrders() {
-      setLoading(true)
-      let query = supabase
-        .from('orders')
-        .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
-        .order('created_at', { ascending: false })
+      try {
+        let query = supabase
+          .from('orders')
+          .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
+          .order('created_at', { ascending: false })
 
-      if (view === 'available') {
-        query = query.eq('status', 'confirmed').is('transporter_id', null)
-      } else {
-        query = query.eq('transporter_id', user.id)
-      }
+        if (view === 'available') {
+          query = query.eq('status', 'confirmed').is('transporter_id', null)
+        } else {
+          query = query.eq('transporter_id', user.id)
+        }
 
-      const { data, error } = await query
-      if (error) {
-        setError(error.message)
-      } else {
-        setOrders(data || [])
-        setError(null)
+        const { data, error } = await query
+
+        if (error) {
+          setError(error.message)
+        } else {
+          setOrders(data || [])
+          setError(null)
+        }
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     fetchOrders()
 
-    // Step 3: realtime in SAME effect — Ghana pattern
     const channel = supabase
       .channel(`transporter-loadboard-${view}`)
       .on('postgres_changes',
@@ -223,13 +225,18 @@ function TransporterLoadBoard() {
 
   const handleAccept = async (orderId) => {
     if (!user?.id) return
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('orders')
       .update({ transporter_id: user.id, status: 'confirmed' })
       .eq('id', orderId)
+      .eq('status', 'confirmed')
+      .is('transporter_id', null)
+      .select()
 
     if (error) {
       notify.error('Failed to accept load')
+    } else if (!data || data.length === 0) {
+      notify.error('This load was already taken by another transporter')
     } else {
       notify.success('Load accepted! Check "My Jobs"')
       setView('myJobs')
@@ -257,12 +264,13 @@ function TransporterLoadBoard() {
       .from('produce-images')
       .getPublicUrl(fileName)
 
+    const photoUrl = publicUrlData.publicUrl
     const newStatus = photoModal.type === 'pickup' ? 'in_transit' : 'delivered'
     const photoColumn = photoModal.type === 'pickup' ? 'pickup_photo_url' : 'delivery_photo_url'
 
     const { error: updateError } = await supabase
       .from('orders')
-      .update({ [photoColumn]: publicUrlData.publicUrl, status: newStatus })
+      .update({ [photoColumn]: photoUrl, status: newStatus })
       .eq('id', photoModal.order.id)
 
     setUploadingPhoto(false)
@@ -279,7 +287,6 @@ function TransporterLoadBoard() {
     }
   }
 
-  // Auth / registration guards — render time, Ghana style
   if (userLoading || checkingReg) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
       <p className="text-[var(--color-charcoal)]/60">Loading...</p>
@@ -313,36 +320,6 @@ function TransporterLoadBoard() {
         >
           Complete Registration →
         </Link>
-      </div>
-    </div>
-  )
-
-  if (user?.role !== 'transporter') return (
-    <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center px-6">
-      <div className="text-center max-w-md">
-        <div className="w-20 h-20 bg-[var(--color-secondary-light)]/30 rounded-full flex items-center justify-center mx-auto mb-6">
-          <span className="text-4xl">🚚</span>
-        </div>
-        <h2 className="font-[var(--font-heading)] text-3xl text-[var(--color-charcoal)] mb-4">
-          Transporter Only
-        </h2>
-        <p className="text-[var(--color-charcoal)]/70 mb-8">
-          This page is only for transporters. Switch to transporter role or create a transporter account.
-        </p>
-        <div className="flex gap-3 justify-center flex-wrap">
-          <Link
-            to="/role-switch"
-            className="inline-block bg-[var(--color-primary)] text-white px-6 py-3 rounded-lg font-bold hover:brightness-95 transition-all"
-          >
-            Switch Role
-          </Link>
-          <Link
-            to="/transporter-registration"
-            className="inline-block border-2 border-[var(--color-primary)] text-[var(--color-primary)] px-6 py-3 rounded-lg font-bold hover:bg-[var(--color-primary)]/5 transition-all"
-          >
-            Register
-          </Link>
-        </div>
       </div>
     </div>
   )
@@ -480,7 +457,7 @@ function TransporterLoadBoard() {
                 key={order.id}
                 order={order}
                 onAccept={handleAccept}
-                onOpenPhotoModal={(o, type) => setPhotoModal({ order: o, type })}
+                onOpenPhotoModal={(order, type) => setPhotoModal({ order, type })}
                 isMyJob={view === 'myJobs'}
               />
             ))}
