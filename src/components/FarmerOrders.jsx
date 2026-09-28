@@ -18,9 +18,32 @@ function FarmerOrders() {
   const [cancellingId, setCancellingId] = useState(null)
 
   useEffect(() => {
-    fetchOrders()
+    if (!user?.id) return
 
-    if (!user) return
+    async function fetchOrders() {
+      const { data: listings } = await supabase
+        .from('listings')
+        .select('id')
+        .eq('farmer_id', user.id)
+
+      if (!listings?.length) {
+        setOrders([])
+        setLoading(false)
+        return
+      }
+
+      const listingIds = listings.map(l => l.id)
+      const { data } = await supabase
+        .from('orders')
+        .select('*, listings(crop_type, quantity, price_per_unit, location)')
+        .in('listing_id', listingIds)
+        .order('created_at', { ascending: false })
+
+      setOrders(data || [])
+      setLoading(false)
+    }
+
+    fetchOrders()
 
     const channel = supabase
       .channel('farmer-orders-realtime')
@@ -31,31 +54,7 @@ function FarmerOrders() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [user])
-
-  const fetchOrders = async () => {
-    if (!user) return
-    const { data: listings } = await supabase
-      .from('listings')
-      .select('id')
-      .eq('farmer_id', user.id)
-
-    if (!listings?.length) {
-      setOrders([])
-      setLoading(false)
-      return
-    }
-
-    const listingIds = listings.map(l => l.id)
-    const { data } = await supabase
-      .from('orders')
-      .select('*, listings(crop_type, quantity, price_per_unit, location)')
-      .in('listing_id', listingIds)
-      .order('created_at', { ascending: false })
-
-    setOrders(data || [])
-    setLoading(false)
-  }
+  }, [user?.id])
 
   const handleCancel = async (order) => {
     setCancellingId(order.id)
@@ -65,7 +64,9 @@ function FarmerOrders() {
       notify.error('Failed to cancel order')
     } else {
       notify.success('Order cancelled')
-      fetchOrders()
+      setOrders((prev) =>
+        prev.map((o) => o.id === order.id ? { ...o, status: 'cancelled' } : o)
+      )
     }
   }
 
@@ -95,6 +96,7 @@ function FarmerOrders() {
       .update({
         transporter_id: selectedTransporterId || null,
         status: 'confirmed',
+        pickup_notes: notes || null,
       })
       .eq('id', selectedOrder.id)
 
@@ -109,7 +111,6 @@ function FarmerOrders() {
           : 'Order confirmed, open for any transporter!'
       )
       closeModal()
-      fetchOrders()
     }
   }
 
@@ -204,7 +205,6 @@ function FarmerOrders() {
         </div>
       )}
 
-      {/* Transport Modal */}
       {transportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[85vh] overflow-y-auto">

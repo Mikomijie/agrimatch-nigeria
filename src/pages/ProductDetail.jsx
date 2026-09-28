@@ -26,8 +26,6 @@ function PinIcon() {
   )
 }
 
-// Separate payment component — this is the key fix
-// By isolating useFlutterwave in its own component, we can pass the correct tx_ref
 function PayButton({ orderId, total, product, quantity, user, onClose }) {
   const navigate = useNavigate()
   const config = {
@@ -36,7 +34,7 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
     amount: total,
     currency: 'NGN',
     payment_options: 'card,mobilemoney,ussd',
-       customer: {
+    customer: {
       email: user?.email || 'buyer@agrimatch.ng',
       phone_number: user?.phone_number || '08000000000',
       name: user?.full_name || 'AgriMatch Buyer',
@@ -56,25 +54,24 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
 
         if (response.status === 'successful' || response.status === 'completed') {
           await supabase
-  .from('orders')
-  .update({
-    status: 'confirmed',
-    payment_status: 'paid',
-    payment_ref: String(response.transaction_id),
-  })
-  .eq('id', orderId)
+            .from('orders')
+            .update({
+              status: 'confirmed',
+              payment_status: 'paid',
+              payment_ref: String(response.transaction_id),
+            })
+            .eq('id', orderId)
 
           await supabase
             .from('listings')
             .update({ quantity: Math.max(0, product.quantity - quantity) })
             .eq('id', product.id)
 
-                       notify.success('Payment successful! Order confirmed.')
+          notify.success('Payment successful! Order confirmed.')
 
-          // Send emails via SendByte
           const { data: fullOrder } = await supabase
             .from('orders')
-            .select('*, listings(crop_type, profiles(full_name, email)), buyer:buyer_id(full_name, email)')
+            .select('*, listings(crop_type, profiles(full_name, email)), buyer:profiles!buyer_id(full_name, email)')
             .eq('id', orderId)
             .single()
 
@@ -98,7 +95,7 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
             }
           }
 
-          setTimeout(() => navigate(`/tracking/${orderId}`), 1500)
+          navigate(`/tracking/${orderId}`)
         } else {
           notify.error('Payment was not completed.')
           onClose()
@@ -110,7 +107,6 @@ function PayButton({ orderId, total, product, quantity, user, onClose }) {
     })
   }
 
-  // Auto-open payment modal when this component mounts
   useEffect(() => {
     handlePay()
   }, [])
@@ -163,7 +159,7 @@ function ProductDetail() {
       setMoreListings(data || [])
     }
     fetchMoreListings()
-  }, [product])
+  }, [product?.id, product?.farmer_id])
 
   useEffect(() => {
     if (!product || product.freshness === 'Harvesting Tomorrow' || product.freshness === 'Future Harvest') return
@@ -188,7 +184,6 @@ function ProductDetail() {
     const interval = setInterval(update, 60000)
     return () => clearInterval(interval)
   }, [product])
-
 
   if (loading) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
@@ -229,18 +224,18 @@ function ProductDetail() {
       setPaymentProcessing(true)
       setError(null)
 
-     const { data: orderData, error: orderError } = await supabase
-  .from('orders')
-  .insert({
-    listing_id: product.id,
-    buyer_id: user.id,
-    farmer_id: product.farmer_id,
-    quantity: quantity,
-    total_price: total,
-    status: 'pending',
-  })
-  .select()
-  .single()
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          listing_id: product.id,
+          buyer_id: user.id,
+          farmer_id: product.farmer_id,
+          quantity: quantity,
+          total_price: total,
+          status: 'pending',
+        })
+        .select()
+        .single()
 
       if (orderError) {
         notify.error('Failed to create order')
@@ -260,7 +255,6 @@ function ProductDetail() {
   return (
     <div className="min-h-screen bg-[var(--color-background-warm)]">
 
-      {/* PayButton renders and auto-opens Flutterwave when order is ready */}
       {pendingOrderId && paymentProcessing && (
         <PayButton
           orderId={pendingOrderId}
@@ -371,7 +365,6 @@ function ProductDetail() {
           </motion.div>
         </motion.div>
 
-        {/* Countdown Band */}
         <motion.div className="mt-8 sm:mt-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
           {product.freshness === 'Harvesting Tomorrow' || product.freshness === 'Future Harvest' ? (
             <div className="bg-[var(--color-surface)] rounded-lg p-4 sm:p-5">

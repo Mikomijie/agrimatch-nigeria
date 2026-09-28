@@ -165,6 +165,7 @@ function TransporterLoadBoard() {
   const [isRegistered, setIsRegistered] = useState(false)
   const [checkingReg, setCheckingReg] = useState(true)
 
+  // Step 1: check registration — runs once when user is available
   useEffect(() => {
     if (!user?.id) return
     async function checkRegistration() {
@@ -179,39 +180,36 @@ function TransporterLoadBoard() {
     checkRegistration()
   }, [user?.id])
 
+  // Step 2: fetch orders — Ghana pattern: plain async inside useEffect
   useEffect(() => {
     if (!user?.id || !isRegistered) return
 
     async function fetchOrders() {
-      try {
-        let query = supabase
-          .from('orders')
-          .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
-          .order('created_at', { ascending: false })
+      setLoading(true)
+      let query = supabase
+        .from('orders')
+        .select('*, listings(crop_type, location, image_url, quantity, profiles(full_name))')
+        .order('created_at', { ascending: false })
 
-        if (view === 'available') {
-          query = query.eq('status', 'confirmed').is('transporter_id', null)
-        } else {
-          query = query.eq('transporter_id', user.id)
-        }
-
-        const { data, error } = await query
-
-        if (error) {
-          setError(error.message)
-        } else {
-          setOrders(data || [])
-          setError(null)
-        }
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
+      if (view === 'available') {
+        query = query.eq('status', 'confirmed').is('transporter_id', null)
+      } else {
+        query = query.eq('transporter_id', user.id)
       }
+
+      const { data, error } = await query
+      if (error) {
+        setError(error.message)
+      } else {
+        setOrders(data || [])
+        setError(null)
+      }
+      setLoading(false)
     }
 
     fetchOrders()
 
+    // Step 3: realtime in SAME effect — Ghana pattern
     const channel = supabase
       .channel(`transporter-loadboard-${view}`)
       .on('postgres_changes',
@@ -259,13 +257,12 @@ function TransporterLoadBoard() {
       .from('produce-images')
       .getPublicUrl(fileName)
 
-    const photoUrl = publicUrlData.publicUrl
     const newStatus = photoModal.type === 'pickup' ? 'in_transit' : 'delivered'
     const photoColumn = photoModal.type === 'pickup' ? 'pickup_photo_url' : 'delivery_photo_url'
 
     const { error: updateError } = await supabase
       .from('orders')
-      .update({ [photoColumn]: photoUrl, status: newStatus })
+      .update({ [photoColumn]: publicUrlData.publicUrl, status: newStatus })
       .eq('id', photoModal.order.id)
 
     setUploadingPhoto(false)
@@ -282,6 +279,7 @@ function TransporterLoadBoard() {
     }
   }
 
+  // Auth / registration guards — render time, Ghana style
   if (userLoading || checkingReg) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
       <p className="text-[var(--color-charcoal)]/60">Loading...</p>
@@ -482,7 +480,7 @@ function TransporterLoadBoard() {
                 key={order.id}
                 order={order}
                 onAccept={handleAccept}
-                onOpenPhotoModal={(order, type) => setPhotoModal({ order, type })}
+                onOpenPhotoModal={(o, type) => setPhotoModal({ order: o, type })}
                 isMyJob={view === 'myJobs'}
               />
             ))}

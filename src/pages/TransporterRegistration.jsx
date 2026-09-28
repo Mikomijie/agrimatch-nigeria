@@ -40,7 +40,7 @@ function TransporterRegistration() {
       }
     }
     if (user) checkExisting()
-  }, [user, navigate])
+  }, [user?.id, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -139,7 +139,6 @@ function TransporterRegistration() {
           className="bg-white rounded-xl shadow-sm p-6 sm:p-8 border border-black/5"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Vehicle Type */}
             <div>
               <label className="block text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase mb-3">
                 Vehicle Type
@@ -166,7 +165,6 @@ function TransporterRegistration() {
               </div>
             </div>
 
-            {/* Capacity */}
             <div>
               <label className="block text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase mb-3">
                 Carrying Capacity (kg)
@@ -185,7 +183,6 @@ function TransporterRegistration() {
               </div>
             </div>
 
-            {/* Coverage Area */}
             <div>
               <label className="block text-xs font-bold tracking-wider text-[var(--color-charcoal)]/70 uppercase mb-3">
                 Coverage Area
@@ -203,7 +200,6 @@ function TransporterRegistration() {
               </select>
             </div>
 
-            {/* Info Box */}
             <div className="bg-[var(--color-primary-light)]/20 rounded-lg p-4">
               <p className="text-sm font-bold text-[var(--color-primary-dark)] mb-2">How it works</p>
               <ul className="space-y-1.5 text-xs text-[var(--color-charcoal)]/70">
@@ -226,7 +222,6 @@ function TransporterRegistration() {
               </ul>
             </div>
 
-            {/* Terms */}
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
