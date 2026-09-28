@@ -7,8 +7,6 @@ import { getRecommended } from '../lib/matching'
 import { isListingExpired } from '../lib/listingHelpers'
 import { notify } from '../lib/notifications'
 import FarmerMap from '../components/FarmerMap'
-import ChatWindow from '../components/ChatWindow'
-import ConversationList from '../components/ConversationList'
 import SkeletonCard from '../components/SkeletonCard'
 import { HomeIcon, OrdersIcon, LogisticsIcon, SwitchIcon } from '../components/NavIcons'
 
@@ -22,7 +20,7 @@ const REGIONS = [
   'Akwa Ibom', 'Ebonyi', 'Ekiti', 'Ondo', 'Osun', 'Ogun'
 ]
 
-function ListingCard({ listing, onMessage }) {
+function ListingCard({ listing }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -60,19 +58,13 @@ function ListingCard({ listing, onMessage }) {
             {listing.profiles?.full_name}
           </p>
         </div>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4">
           <Link
             to={`/product/${listing.id}`}
             className="block w-full bg-[var(--color-secondary)] text-white px-4 py-2 rounded-md text-sm font-medium text-center hover:brightness-95 transition-all active:scale-[0.98]"
           >
             View & Order
           </Link>
-          <button
-            onClick={() => onMessage(listing)}
-            className="w-full border border-[var(--color-primary)] text-[var(--color-primary)] px-4 py-2 rounded-md text-sm font-medium hover:bg-[var(--color-primary)]/5 transition-all"
-          >
-            Message Farmer
-          </button>
         </div>
       </div>
     </motion.div>
@@ -92,10 +84,6 @@ function BuyerMarketplace() {
   const [priceRange, setPriceRange] = useState([0, 500000])
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState('list')
-  const [showChat, setShowChat] = useState(false)
-  const [selectedChat, setSelectedChat] = useState(null)
-  const [chatName, setChatName] = useState('')
-  const [unreadMessages, setUnreadMessages] = useState(0)
   const [newOrders, setNewOrders] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [pullStart, setPullStart] = useState(null)
@@ -166,16 +154,9 @@ function BuyerMarketplace() {
   }, [selectedCrop, selectedLocation, priceRange, searchQuery])
 
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
 
     async function fetchUnread() {
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('id')
-        .eq('receiver_id', user.id)
-        .eq('read', false)
-      setUnreadMessages(msgs?.length || 0)
-
       const { data: orders } = await supabase
         .from('orders')
         .select('id')
@@ -187,21 +168,11 @@ function BuyerMarketplace() {
 
     const channel = supabase
       .channel('buyer-notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => fetchUnread())
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => fetchUnread())
       .subscribe()
 
     return () => supabase.removeChannel(channel)
   }, [user?.id])
-
-  useEffect(() => {
-    if (showChat || selectedChat) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => { document.body.style.overflow = '' }
-  }, [showChat, selectedChat])
 
   const handleTouchStart = (e) => {
     if (window.scrollY === 0) setPullStart(e.touches[0].clientY)
@@ -230,12 +201,6 @@ function BuyerMarketplace() {
   }
 
   const activeFilterCount = [selectedCrop, selectedLocation].filter(Boolean).length
-
-  const openChat = (listing) => {
-    setSelectedChat(listing.farmer_id)
-    setChatName(listing.profiles?.full_name)
-    setShowChat(true)
-  }
 
   const recommended = !selectedCrop && !selectedLocation && !searchQuery && listings.length > 3
     ? getRecommended(listings, 3)
@@ -475,7 +440,7 @@ function BuyerMarketplace() {
                 <p className="text-4xl mb-4">⚠️</p>
                 <p className="text-[var(--color-charcoal)]/60 mb-4">Failed to load listings.</p>
                 <button
-                  onClick={() => setSelectedCrop(selectedCrop)}
+                  onClick={() => setLoading(true)}
                   className="text-[var(--color-primary)] font-semibold underline hover:no-underline"
                 >
                   Try again
@@ -516,7 +481,7 @@ function BuyerMarketplace() {
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {recommended.map((listing) => (
-                        <ListingCard key={listing.id} listing={listing} onMessage={openChat} />
+                        <ListingCard key={listing.id} listing={listing} />
                       ))}
                     </div>
                     <div className="mt-8 border-t border-black/5" />
@@ -531,7 +496,7 @@ function BuyerMarketplace() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
                   {listings.map((listing) => (
-                    <ListingCard key={listing.id} listing={listing} onMessage={openChat} />
+                    <ListingCard key={listing.id} listing={listing} />
                   ))}
                 </div>
               </>
@@ -552,62 +517,6 @@ function BuyerMarketplace() {
           </p>
         </div>
       </footer>
-
-      {!showChat && !selectedChat && (
-        <button
-          onClick={() => setShowChat(true)}
-          className="fixed right-4 bottom-4 sm:right-6 sm:bottom-6 w-14 h-14 rounded-full bg-[var(--color-secondary)] text-white flex items-center justify-center shadow-lg hover:brightness-95 transition-all z-[9999]"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          {unreadMessages > 0 && (
-            <span className="absolute -top-1 -right-1 bg-[var(--color-secondary-dark)] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-              {unreadMessages}
-            </span>
-          )}
-        </button>
-      )}
-
-      {(showChat || selectedChat) && (
-        <div className="hidden md:block fixed right-6 bottom-6 z-50 w-96 shadow-2xl rounded-lg overflow-hidden" style={{ height: '480px' }}>
-          {!selectedChat ? (
-            <ConversationList
-              currentUser={user}
-              onSelectConversation={(id, name) => { setSelectedChat(id); setChatName(name) }}
-              onClose={() => { setShowChat(false); setSelectedChat(null) }}
-            />
-          ) : (
-            <ChatWindow
-              conversationWith={selectedChat}
-              conversationName={chatName}
-              currentUser={user}
-              onClose={() => { setSelectedChat(null); setShowChat(false) }}
-            />
-          )}
-        </div>
-      )}
-
-      {(showChat || selectedChat) && (
-        <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col" onClick={(e) => { if (e.target === e.currentTarget) { setShowChat(false); setSelectedChat(null) } }}>
-          <div className="flex flex-col bg-white rounded-t-2xl overflow-hidden mt-auto" style={{ height: '85dvh' }}>
-            {!selectedChat ? (
-              <ConversationList
-                currentUser={user}
-                onSelectConversation={(id, name) => { setSelectedChat(id); setChatName(name) }}
-                onClose={() => { setShowChat(false); setSelectedChat(null) }}
-              />
-            ) : (
-              <ChatWindow
-                conversationWith={selectedChat}
-                conversationName={chatName}
-                currentUser={user}
-                onClose={() => { setSelectedChat(null); setShowChat(false) }}
-              />
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

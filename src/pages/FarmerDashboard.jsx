@@ -5,11 +5,9 @@ import { supabase } from '../lib/supabaseClient'
 import { useCurrentUser } from '../lib/useCurrentUser'
 import { isListingExpired } from '../lib/listingHelpers'
 import { notify } from '../lib/notifications'
-import ChatWindow from '../components/ChatWindow'
-import ConversationList from '../components/ConversationList'
 import FarmerOrders from '../components/FarmerOrders'
 import ConfirmModal from '../components/ConfirmModal'
-import { MarketIcon, MessagesIcon, OrdersIcon, LogisticsIcon } from '../components/NavIcons'
+import { MarketIcon, OrdersIcon, LogisticsIcon } from '../components/NavIcons'
 
 const CROPS = [
   { id: 'Tomatoes', label: 'Tomatoes', image: '/images/produce/tomatoes.jpg' },
@@ -43,9 +41,6 @@ function FarmerDashboard() {
   const [imagePreview, setImagePreview] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [myListings, setMyListings] = useState([])
-  const [showChat, setShowChat] = useState(false)
-  const [selectedChat, setSelectedChat] = useState(null)
-  const [chatName, setChatName] = useState('')
   const [listingCount, setListingCount] = useState(0)
   const [editingListing, setEditingListing] = useState(null)
   const [editQuantity, setEditQuantity] = useState('')
@@ -55,7 +50,6 @@ function FarmerDashboard() {
   const [newListingId, setNewListingId] = useState(null)
   const [showOrderNotification, setShowOrderNotification] = useState(false)
   const [newOrderMessage, setNewOrderMessage] = useState('')
-  const [unreadMessages, setUnreadMessages] = useState(0)
   const [pendingOrders, setPendingOrders] = useState(0)
   const [isFirstListing, setIsFirstListing] = useState(false)
 
@@ -197,7 +191,6 @@ function FarmerDashboard() {
     setConfirmDelete(null)
   }
 
-  // Fetch listings on load
   useEffect(() => {
     if (!user?.id) return
 
@@ -212,11 +205,6 @@ function FarmerDashboard() {
       setIsFirstListing(data?.length === 0)
     }
     fetchMyListings()
-  }, [user?.id])
-
-  // Real-time orders + listings updates
-  useEffect(() => {
-    if (!user?.id) return
 
     const ordersChannel = supabase
       .channel('farmer-new-orders')
@@ -246,18 +234,10 @@ function FarmerDashboard() {
     return () => supabase.removeChannel(ordersChannel)
   }, [user?.id])
 
-  // Unread badges
   useEffect(() => {
     if (!user?.id) return
 
     async function fetchBadges() {
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('id')
-        .eq('receiver_id', user.id)
-        .eq('read', false)
-      setUnreadMessages(msgs?.length || 0)
-
       const { data: listings } = await supabase
         .from('listings')
         .select('id')
@@ -277,22 +257,11 @@ function FarmerDashboard() {
 
     const channel = supabase
       .channel('farmer-badges')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => fetchBadges())
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => fetchBadges())
       .subscribe()
 
     return () => supabase.removeChannel(channel)
   }, [user?.id])
-
-  // Lock body scroll when chat is open
-  useEffect(() => {
-    if (showChat || selectedChat) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => { document.body.style.overflow = '' }
-  }, [showChat, selectedChat])
 
   if (userLoading) return (
     <div className="min-h-screen bg-[var(--color-background-warm)] flex items-center justify-center">
@@ -327,17 +296,6 @@ function FarmerDashboard() {
               <Link to="/marketplace" className="text-white/80 hover:text-white transition-colors">
                 Marketplace
               </Link>
-              <button
-                onClick={() => setShowChat(true)}
-                className="relative text-white/80 hover:text-white transition-colors text-sm font-medium"
-              >
-                Messages
-                {unreadMessages > 0 && (
-                  <span className="absolute -top-2 -right-3 bg-[var(--color-secondary)] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                    {unreadMessages}
-                  </span>
-                )}
-              </button>
               <Link to="/logistics" className="text-white/80 hover:text-white transition-colors">Logistics</Link>
               <button
                 onClick={() => navigate('/buyer-orders')}
@@ -373,17 +331,6 @@ function FarmerDashboard() {
           >
             <MarketIcon />Market
           </Link>
-          <button
-            onClick={() => setShowChat(true)}
-            className="relative flex flex-col items-center gap-1 text-xs text-[var(--color-charcoal)]/60"
-          >
-            <MessagesIcon />Messages
-            {unreadMessages > 0 && (
-              <span className="absolute -top-1 right-1 bg-[var(--color-secondary)] text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                {unreadMessages}
-              </span>
-            )}
-          </button>
           <Link
             to="/buyer-orders"
             className={`relative flex flex-col items-center gap-1 text-xs ${location.pathname === '/buyer-orders' ? 'text-[var(--color-primary)]' : 'text-[var(--color-charcoal)]/60'}`}
@@ -818,60 +765,6 @@ function FarmerDashboard() {
           onConfirm={() => deleteListing(confirmDelete)}
           onCancel={() => setConfirmDelete(null)}
         />
-      )}
-
-      {!showChat && !selectedChat && (
-        <button
-          onClick={() => setShowChat(true)}
-          className="hidden md:flex fixed right-6 bottom-6 w-14 h-14 rounded-full bg-[var(--color-secondary)] text-white items-center justify-center shadow-lg hover:brightness-95 transition-all z-[9999] text-2xl"
-        >
-          💬
-          {unreadMessages > 0 && (
-            <span className="absolute -top-1 -right-1 bg-[var(--color-secondary-dark)] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-              {unreadMessages}
-            </span>
-          )}
-        </button>
-      )}
-
-      {(showChat || selectedChat) && (
-        <div className="hidden md:block fixed right-6 bottom-6 z-50 w-96 shadow-2xl rounded-lg overflow-hidden" style={{ height: '480px' }}>
-          {!selectedChat ? (
-            <ConversationList
-              currentUser={user}
-              onSelectConversation={(id, name) => { setSelectedChat(id); setChatName(name) }}
-              onClose={() => { setShowChat(false); setSelectedChat(null) }}
-            />
-          ) : (
-            <ChatWindow
-              conversationWith={selectedChat}
-              conversationName={chatName}
-              currentUser={user}
-              onClose={() => { setSelectedChat(null); setShowChat(false) }}
-            />
-          )}
-        </div>
-      )}
-
-      {(showChat || selectedChat) && (
-        <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex flex-col" onClick={(e) => { if (e.target === e.currentTarget) { setShowChat(false); setSelectedChat(null) } }}>
-          <div className="flex flex-col bg-white rounded-t-2xl overflow-hidden mt-auto" style={{ height: '85dvh' }}>
-            {!selectedChat ? (
-              <ConversationList
-                currentUser={user}
-                onSelectConversation={(id, name) => { setSelectedChat(id); setChatName(name) }}
-                onClose={() => { setShowChat(false); setSelectedChat(null) }}
-              />
-            ) : (
-              <ChatWindow
-                conversationWith={selectedChat}
-                conversationName={chatName}
-                currentUser={user}
-                onClose={() => { setSelectedChat(null); setShowChat(false) }}
-              />
-            )}
-          </div>
-        </div>
       )}
     </div>
   )
