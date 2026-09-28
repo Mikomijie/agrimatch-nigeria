@@ -73,7 +73,7 @@ function PhotoUploadModal({ title, onClose, onSubmit, submitting }) {
   )
 }
 
-function LoadCard({ order, onAccept, onOpenPhotoModal, isMyJob }) {
+function LoadCard({ order, onAccept, onOpenPhotoModal, isMyJob, acceptingId }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -140,11 +140,12 @@ function LoadCard({ order, onAccept, onOpenPhotoModal, isMyJob }) {
               )}
             </div>
           ) : (
-            <button
+                        <button
               onClick={() => onAccept(order.id)}
-              className="bg-[var(--color-primary)] text-white px-4 sm:px-6 py-2 rounded-lg text-sm font-bold hover:brightness-95 active:scale-[0.98] transition-all whitespace-nowrap flex-shrink-0"
+              disabled={acceptingId === order.id}
+              className="bg-[var(--color-primary)] text-white px-4 sm:px-6 py-2 rounded-lg text-sm font-bold hover:brightness-95 active:scale-[0.98] transition-all whitespace-nowrap flex-shrink-0 disabled:opacity-60"
             >
-              Accept Load
+              {acceptingId === order.id ? '⏳ Accepting...' : 'Accept Load'}
             </button>
           )}
         </div>
@@ -162,6 +163,7 @@ function TransporterLoadBoard() {
   const [error, setError] = useState(null)
   const [photoModal, setPhotoModal] = useState(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [acceptingId, setAcceptingId] = useState(null)
   const [isRegistered, setIsRegistered] = useState(false)
   const [checkingReg, setCheckingReg] = useState(true)
 
@@ -223,23 +225,20 @@ function TransporterLoadBoard() {
     return () => supabase.removeChannel(channel)
   }, [user?.id, view, isRegistered])
 
-  const handleAccept = async (orderId) => {
+   const handleAccept = async (orderId) => {
     if (!user?.id) return
-    const { data, error } = await supabase
+    setAcceptingId(orderId)
+    const { error } = await supabase
       .from('orders')
       .update({ transporter_id: user.id, status: 'confirmed' })
       .eq('id', orderId)
-      .eq('status', 'confirmed')
-      .is('transporter_id', null)
-      .select()
 
+    setAcceptingId(null)
     if (error) {
       notify.error('Failed to accept load')
-    } else if (!data || data.length === 0) {
-      notify.error('This load was already taken by another transporter')
     } else {
-      notify.success('Load accepted! Check "My Jobs"')
-      setView('myJobs')
+      notify.success('🎉 Load accepted! Upload a pickup photo to start delivery.')
+      setTimeout(() => setView('myJobs'), 1200)
     }
   }
 
@@ -457,6 +456,7 @@ function TransporterLoadBoard() {
                 key={order.id}
                 order={order}
                 onAccept={handleAccept}
+                acceptingId={acceptingId}
                 onOpenPhotoModal={(order, type) => setPhotoModal({ order, type })}
                 isMyJob={view === 'myJobs'}
               />
